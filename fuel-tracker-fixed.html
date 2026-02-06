@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 25px;
+        }
+
+        .fill-log {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .fill-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .fill-details {
+            flex: 1;
+        }
+
+        .fill-date {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .fill-info {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .delete-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .edit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .edit-btn:hover {
+            background: #5568d3;
+        }
+
+        .delete-btn:hover {
+            background: #ee5a6f;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⛽ Fuel Tracker</h1>
+            <p>Track your fuel economy and expenses</p>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                <label for="year-filter" style="color: white; font-weight: 600;">View Year:</label>
+                <select id="year-filter" style="padding: 8px 15px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer;">
+                    <option value="all">All Years</option>
+                </select>
+                <button onclick="clearAllData()" style="padding: 8px 15px; background: #ff4757; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Clear All Data</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab(event, 'add')">Add Fill-up</button>
+                <button class="tab" onclick="switchTab(event, 'stats')">Statistics</button>
+                <button class="tab" onclick="switchTab(event, 'history')">History</button>
+            </div>
+
+            <!-- Add Fill-up Tab -->
+            <div id="add-tab" class="tab-content active">
+                <form id="fuel-form">
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="price-per-gallon">Price per Gallon ($)</label>
+                        <input type="number" id="price-per-gallon" step="0.001" placeholder="3.89" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="gallons">Gallons</label>
+                        <input type="number" id="gallons" step="0.001" placeholder="12.5" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="total-cost">Total Cost ($)</label>
+                        <input type="number" id="total-cost" step="0.01" placeholder="48.63" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="odometer">Odometer Reading</label>
+                        <input type="number" id="odometer" step="0.1" placeholder="45320" required>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="skip-mpg" style="width: auto;">
+                            First fill-up or missed a fill-up (skip MPG calculation)
+                        </label>
+                    </div>
+                    <button type="submit" class="btn">Add Fill-up</button>
+                </form>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div id="stats-tab" class="tab-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="avg-mpg">--</div>
+                        <div class="stat-label">Avg MPG</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="avg-cost-per-mile">--</div>
+                        <div class="stat-label">¢/Mile</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-spent">--</div>
+                        <div class="stat-label">Total Spent</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="total-miles">--</div>
+                        <div class="stat-label">Total Miles</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 15px;">MPG Over Time</h3>
+                <div class="chart-container">
+                    <canvas id="mpg-chart"></canvas>
+                </div>
+
+                <h3 style="margin-bottom: 15px;">Cost per Gallon Trend</h3>
+                <div class="chart-container">
+                    <canvas id="price-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="history-tab" class="tab-content">
+                <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn" style="flex: 1; min-width: 150px;" onclick="exportToCSV()">📥 Export to CSV</button>
+                    <button class="btn" style="flex: 1; min-width: 150px;" onclick="exportToExcel()">📥 Export to Excel</button>
+                    <label class="btn" style="flex: 1; min-width: 150px; cursor: pointer; text-align: center;">
+                        📤 Import File
+                        <input type="file" id="import-file" accept=".csv,.xlsx,.xls" style="display: none;" onchange="importFile(event)">
+                    </label>
+                </div>
+                <div id="fill-log" class="fill-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fillUps = [];
+        let mpgChart = null;
+        let priceChart = null;
+        let currentYearFilter = 'all';
+
+        // Get filtered data based on selected year
+        function getFilteredData() {
+            if (currentYearFilter === 'all') {
+                return fillUps;
+            }
+            return fillUps.filter(fill => {
+                const year = new Date(fill.date).getFullYear();
+                return year === parseInt(currentYearFilter);
+            });
+        }
+
+        // Load data from localStorage
+        function loadData() {
+            const saved = localStorage.getItem('fuelTrackerData');
+            if (saved) {
+                fillUps = JSON.parse(saved);
+            }
+            populateYearFilter();
+        }
+
+        // Populate year filter dropdown
+        function populateYearFilter() {
+            const yearFilter = document.getElementById('year-filter');
+            const years = new Set();
+
+            fillUps.forEach(fill => {
+                const year = new Date(fill.date).getFullYear();
+                years.add(year);
+            });
+
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+
+            // Keep "All Years" option and add years
+            const currentValue = yearFilter.value;
+            yearFilter.innerHTML = '<option value="all">All Years</option>';
+            sortedYears.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearFilter.appendChild(option);
+            });
+
+            // Restore previous selection if it still exists
+            if (currentValue && Array.from(yearFilter.options).some(opt => opt.value === currentValue)) {
+                yearFilter.value = currentValue;
+            }
+        }
+
+        // Handle year filter change
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('year-filter').addEventListener('change', function(e) {
+                currentYearFilter = e.target.value;
+                updateStats();
+                updateHistory();
+                updateCharts();
+            });
+        });
+
+        // Clear all data with confirmation
+        function clearAllData() {
+            if (confirm('⚠️ WARNING: This will permanently delete ALL your fuel tracking data. This cannot be undone. Are you sure?')) {
+                if (confirm('Are you REALLY sure? This will delete all data from all years.')) {
+                    fillUps = [];
+                    saveData();
+                    currentYearFilter = 'all';
+                    document.getElementById('year-filter').value = 'all';
+                    populateYearFilter();
+                    updateStats();
+                    updateHistory();
+                    updateCharts();
+                    alert('All data has been cleared.');
+                }
+            }
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('fuelTrackerData', JSON.stringify(fillUps));
+        }
+
+        // Initialize
+        loadData();
+        document.getElementById('date').valueAsDate = new Date();
+        updateStats();
+        updateHistory();
+        updateCharts();
+
+        // Auto-calculate any of the three fields based on the other two
+        let lastEdited = null;
+
+        document.getElementById('price-per-gallon').addEventListener('input', function() {
+            lastEdited = 'price';
+            autoCalculate();
+        });
+
+        document.getElementById('gallons').addEventListener('input', function() {
+            lastEdited = 'gallons';
+            autoCalculate();
+        });
+
+        document.getElementById('total-cost').addEventListener('input', function() {
+            lastEdited = 'total';
+            autoCalculate();
+        });
+
+        function autoCalculate() {
+            const price = parseFloat(document.getElementById('price-per-gallon').value) || 0;
+            const gallons = parseFloat(document.getElementById('gallons').value) || 0;
+            const total = parseFloat(document.getElementById('total-cost').value) || 0;
+
+            // Count how many fields have values
+            const hasPrice = price > 0;
+            const hasGallons = gallons > 0;
+            const hasTotal = total > 0;
+            const filledCount = (hasPrice ? 1 : 0) + (hasGallons ? 1 : 0) + (hasTotal ? 1 : 0);
+
+            // If we have exactly 2 fields filled, calculate the third
+            if (filledCount === 2) {
+                if (!hasPrice && hasGallons && hasTotal) {
+                    // Calculate price per gallon
+                    document.getElementById('price-per-gallon').value = (total / gallons).toFixed(3);
+                } else if (hasPrice && !hasGallons && hasTotal) {
+                    // Calculate gallons
+                    document.getElementById('gallons').value = (total / price).toFixed(3);
+                } else if (hasPrice && hasGallons && !hasTotal) {
+                    // Calculate total cost
+                    document.getElementById('total-cost').value = (price * gallons).toFixed(2);
+                }
+            }
+
+            // If all 3 fields are filled and one was just edited, recalculate based on which was edited last
+            if (filledCount === 3 && lastEdited) {
+                if (lastEdited === 'price' || lastEdited === 'gallons') {
+                    // Recalculate total
+                    document.getElementById('total-cost').value = (price * gallons).toFixed(2);
+                } else if (lastEdited === 'total') {
+                    // Recalculate gallons (assuming price is more stable)
+                    if (price > 0) {
+                        document.getElementById('gallons').value = (total / price).toFixed(3);
+                    }
+                }
+            }
+        }
+
+        // Form submission
+        document.getElementById('fuel-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const odometer = parseFloat(document.getElementById('odometer').value);
+            const skipMpg = document.getElementById('skip-mpg').checked;
+
+            let miles = null;
+            let mpg = null;
+
+            // Calculate miles and MPG only if not skipped and there's a previous fill-up
+            if (!skipMpg && fillUps.length > 0) {
+                const lastFillUp = fillUps[fillUps.length - 1];
+                miles = odometer - lastFillUp.odometer;
+
+                if (miles > 0) {
+                    const gallons = parseFloat(document.getElementById('gallons').value);
+                    mpg = +(miles / gallons).toFixed(2);
+                } else {
+                    alert('Odometer reading must be higher than the last fill-up!');
+                    return;
+                }
+            }
+
+            const fillUp = {
+                id: Date.now(),
+                date: document.getElementById('date').value,
+                pricePerGallon: parseFloat(document.getElementById('price-per-gallon').value),
+                gallons: parseFloat(document.getElementById('gallons').value),
+                totalCost: parseFloat(document.getElementById('total-cost').value),
+                odometer: odometer,
+                miles: miles,
+                mpg: mpg
+            };
+
+            fillUps.push(fillUp);
+            fillUps.sort((a, b) => new Date(a.date) - new Date(b.date));
+            saveData();
+
+            this.reset();
+            document.getElementById('date').valueAsDate = new Date();
+
+            populateYearFilter();
+            updateStats();
+            updateHistory();
+            updateCharts();
+
+            alert('Fill-up added successfully!');
+        });
+
+        function switchTab(e, tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            e.target.classList.add('active');
+            document.getElementById(tab + '-tab').classList.add('active');
+
+            if (tab === 'stats') {
+                updateCharts();
+            }
+        }
+
+        function updateStats() {
+            const filteredData = getFilteredData();
+
+            if (filteredData.length === 0) {
+                document.getElementById('avg-mpg').textContent = '--';
+                document.getElementById('avg-cost-per-mile').textContent = '--';
+                document.getElementById('total-spent').textContent = '--';
+                document.getElementById('total-miles').textContent = '--';
+                return;
+            }
+
+            const fillUpsWithMpg = filteredData.filter(f => f.mpg !== null);
+
+            const avgMpg = fillUpsWithMpg.length > 0
+                ? fillUpsWithMpg.reduce((sum, f) => sum + parseFloat(f.mpg), 0) / fillUpsWithMpg.length
+                : 0;
+
+            const totalSpent = filteredData.reduce((sum, f) => sum + f.totalCost, 0);
+            const totalMiles = filteredData.filter(f => f.miles !== null).reduce((sum, f) => sum + f.miles, 0);
+            const costPerMile = totalMiles > 0 ? (totalSpent / totalMiles) * 100 : 0; // in cents
+
+            document.getElementById('avg-mpg').textContent = fillUpsWithMpg.length > 0 ? avgMpg.toFixed(1) : '--';
+            document.getElementById('avg-cost-per-mile').textContent = totalMiles > 0 ? costPerMile.toFixed(1) : '--';
+            document.getElementById('total-spent').textContent = '$' + totalSpent.toFixed(0);
+            document.getElementById('total-miles').textContent = totalMiles > 0 ? totalMiles.toFixed(0) : '--';
+        }
+
+        function recomputeDerivedFields() {
+            fillUps.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            let lastOdometer = null;
+
+            fillUps.forEach((f, index) => {
+                // Only recompute if miles/mpg are null or undefined (not already set from import)
+                if ((f.miles === null || f.miles === undefined) && lastOdometer !== null && f.odometer > lastOdometer) {
+                    f.miles = f.odometer - lastOdometer;
+                }
+                
+                if ((f.mpg === null || f.mpg === undefined) && f.miles !== null && f.gallons > 0) {
+                    f.mpg = +(f.miles / f.gallons).toFixed(2);
+                }
+                
+                // Set to null only if this is the first entry or odometer didn't increase
+                if (f.miles === undefined && (lastOdometer === null || f.odometer <= lastOdometer)) {
+                    f.miles = null;
+                    f.mpg = null;
+                }
+                
+                lastOdometer = f.odometer;
+            });
+        }
+
+        function formatDateLocal(yyyyMMdd) {
+            if (!yyyyMMdd) return '';
+            const [y, m, d] = yyyyMMdd.split('-').map(Number);
+            return new Date(y, m - 1, d).toLocaleDateString();
+        }
+
+        function updateHistory() {
+            const logDiv = document.getElementById('fill-log');
+            const filteredData = getFilteredData();
+
+            if (filteredData.length === 0) {
+                const yearText = currentYearFilter === 'all' ? '' : ` for ${currentYearFilter}`;
+                logDiv.innerHTML = `
+                    <div class="empty-state">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 3v18h18"/>
+                            <path d="m19 9-5 5-4-4-3 3"/>
+                        </svg>
+                        <p>No fill-ups recorded${yearText}.<br>${fillUps.length > 0 ? 'Try selecting a different year.' : 'Add your first fill-up to get started!'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            logDiv.innerHTML = filteredData.slice().reverse().map(fill => `
+                <div class="fill-item">
+                    <div class="fill-details">
+                        <div class="fill-date">${formatDateLocal(fill.date)}</div>
+                        <div class="fill-info">
+                            ${fill.mpg !== null ? fill.mpg + ' MPG • ' : ''}${Number(fill.gallons).toFixed(3)} gal @ $${Number(fill.pricePerGallon).toFixed(3)}/gal • Odometer: ${fill.odometer.toFixed(1)}
+                        </div>
+                        ${fill.miles !== null ? `<div class="fill-info" style="margin-top: 3px;">Miles driven: ${fill.miles.toFixed(1)}</div>` : ''}
+                        <div class="fill-info" style="font-weight: 600; color: #333; margin-top: 5px;">
+                            Total: $${fill.totalCost.toFixed(2)}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="edit-btn" onclick="editFillUp(${fill.id})">Edit</button>
+                        <button class="delete-btn" onclick="deleteFillUp(${fill.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deleteFillUp(id) {
+            if (confirm('Are you sure you want to delete this fill-up?')) {
+                fillUps = fillUps.filter(f => f.id !== id);
+                saveData();
+                populateYearFilter();
+                updateStats();
+                updateHistory();
+                updateCharts();
+            }
+        }
+
+        function editFillUp(id) {
+            const fillUp = fillUps.find(f => f.id === id);
+            if (!fillUp) return;
+
+            // Populate the form with existing values
+            document.getElementById('date').value = fillUp.date;
+            document.getElementById('odometer').value = fillUp.odometer;
+            document.getElementById('price-per-gallon').value = fillUp.pricePerGallon;
+            document.getElementById('gallons').value = fillUp.gallons;
+            document.getElementById('total-cost').value = fillUp.totalCost;
+
+            // Delete the old entry
+            fillUps = fillUps.filter(f => f.id !== id);
+            saveData();
+
+            // Switch to add tab
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab')[0].classList.add('active');
+            document.getElementById('add-tab').classList.add('active');
+
+            // Focus on the date field
+            document.getElementById('date').focus();
+
+            // Show a message
+            alert('Edit the fill-up and click "Add Fill-up" to save changes.');
+        }
+
+        function updateCharts() {
+            const filteredData = getFilteredData();
+            const fillUpsWithMpg = filteredData.filter(f => f.mpg !== null);
+
+            if (fillUpsWithMpg.length === 0) return;
+
+            const labels = fillUpsWithMpg.map(f => formatDateLocal(f.date));
+            const mpgData = fillUpsWithMpg.map(f => parseFloat(f.mpg));
+            const priceData = filteredData.map(f => f.pricePerGallon);
+            const priceLabels = filteredData.map(f => formatDateLocal(f.date));
+
+            // MPG Chart
+            const mpgCtx = document.getElementById('mpg-chart').getContext('2d');
+            if (mpgChart) mpgChart.destroy();
+
+            mpgChart = new Chart(mpgCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'MPG',
+                        data: mpgData,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+
+            // Price Chart
+            const priceCtx = document.getElementById('price-chart').getContext('2d');
+            if (priceChart) priceChart.destroy();
+
+            priceChart = new Chart(priceCtx, {
+                type: 'line',
+                data: {
+                    labels: priceLabels,
+                    datasets: [{
+                        label: 'Price per Gallon',
+                        data: priceData,
+                        borderColor: '#764ba2',
+                        backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(3);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Export to CSV
+        function exportToCSV() {
+            if (fillUps.length === 0) {
+                alert('No data to export!');
+                return;
+            }
+
+            const headers = ['Date', 'Odometer', 'Price per Gallon', 'Gallons', 'Total Cost', 'Miles Driven', 'MPG'];
+            const rows = fillUps.map(fill => [
+                fill.date,
+                fill.odometer,
+                Number(fill.pricePerGallon).toFixed(3),
+                Number(fill.gallons).toFixed(3),
+                fill.totalCost.toFixed(2),
+                fill.miles !== null ? fill.miles.toFixed(2) : '',
+                fill.mpg !== null ? fill.mpg : ''
+            ]);
+
+            let csvContent = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csvContent += row.join(',') + '\n';
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fuel-tracker-' + new Date().toISOString().split('T')[0] + '.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Export to Excel
+        function exportToExcel() {
+            if (fillUps.length === 0) {
+                alert('No data to export!');
+                return;
+            }
+
+            const data = fillUps.map(fill => ({
+                'Date': fill.date,
+                'Odometer': fill.odometer,
+                'Price per Gallon': fill.pricePerGallon,
+                'Gallons': fill.gallons,
+                'Total Cost': fill.totalCost,
+                'Miles Driven': fill.miles !== null ? fill.miles : '',
+                'MPG': fill.mpg !== null ? fill.mpg : ''
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Fuel Data');
+
+            XLSX.writeFile(workbook, 'fuel-tracker-' + new Date().toISOString().split('T')[0] + '.xlsx');
+        }
+
+        // Import file (CSV or Excel)
+        function importFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    let importedData = [];
+
+                    if (file.name.endsWith('.csv')) {
+                        // Parse CSV
+                        const text = e.target.result;
+                        const lines = text.split('\n');
+                        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+                        // Find column indices (flexible column naming)
+                        const dateIdx = headers.findIndex(h => h.includes('date') || h.includes('time'));
+                        const odometerIdx = headers.findIndex(h => h.includes('odometer') || h.includes('odo') || h.includes('mileage'));
+                        const priceIdx = headers.findIndex(h => h.includes('price') && (h.includes('gallon') || h.includes('per') || h.includes('unit')));
+                        const gallonsIdx = headers.findIndex(h => h.includes('gallon') || h.includes('volume') || h.includes('amount'));
+                        const totalIdx = headers.findIndex(h => (h.includes('total') || h.includes('cost') || h.includes('paid')) && !h.includes('per'));
+                        const milesIdx = headers.findIndex(h => h.includes('miles') && h.includes('driven'));
+                        const mpgIdx = headers.findIndex(h => h.includes('mpg') || h.includes('efficiency'));
+
+                        for (let i = 1; i < lines.length; i++) {
+                            if (lines[i].trim() === '') continue;
+
+                            const values = lines[i].split(',').map(v => v.trim());
+
+                            // Parse date flexibly
+                            let dateValue = values[dateIdx];
+                            let formattedDate = '';
+
+                            if (dateValue) {
+                                // Strip time if present (anything after space)
+                                const datePart = dateValue.split(' ')[0];
+
+                                // Handle MM/DD/YYYY or M/D/YYYY
+                                const mdy = datePart.split('/');
+                                if (mdy.length === 3) {
+                                    const month = mdy[0].padStart(2, '0');
+                                    const day   = mdy[1].padStart(2, '0');
+                                    const year  = mdy[2];
+                                    formattedDate = `${year}-${month}-${day}`;
+                                }
+                                // Handle YYYY-MM-DD
+                                else if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+                                    formattedDate = datePart;
+                                }
+                             }
+
+                            const entry = {
+                                id: Date.now() + i,
+                                date: formattedDate,
+                                odometer: odometerIdx >= 0 ? parseFloat(values[odometerIdx]) : 0,
+                                pricePerGallon: priceIdx >= 0 ? parseFloat(values[priceIdx]) : 0,
+                                gallons: gallonsIdx >= 0 ? parseFloat(values[gallonsIdx]) : 0,
+                                totalCost: totalIdx >= 0 ? parseFloat(values[totalIdx]) : 0,
+                                miles: milesIdx >= 0 && values[milesIdx] !== '' ? parseFloat(values[milesIdx]) : null,
+                                mpg: mpgIdx >= 0 && values[mpgIdx] !== '' ? parseFloat(values[mpgIdx]) : null
+                            };
+
+                            // Skip invalid entries
+                            if (entry.odometer > 0 && entry.gallons > 0) {
+                                importedData.push(entry);
+                            }
+                        }
+
+                        console.log('CSV Import - Raw entries found:', importedData.length);
+                        console.log('Sample entry:', importedData[0]);
+                    } else {
+                        // Parse Excel
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                        importedData = jsonData.map((row, index) => {
+                            // Find date field (flexible naming)
+                            let dateValue = row['Date'] || row['date'] || row['DateTime'] || row['Time'] || row['timestamp'];
+                            let formattedDate = '';
+
+                            if (dateValue) {
+                                // Excel dates might be serial numbers
+                                if (typeof dateValue === 'number') {
+                                    const excelDate = XLSX.SSF.parse_date_code(dateValue);
+                                    formattedDate = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
+                                } else {
+                                    const parsedDate = new Date(dateValue);
+                                    if (!isNaN(parsedDate.getTime())) {
+                                        formattedDate = parsedDate.toISOString().split('T')[0];
+                                    } else {
+                                        formattedDate = dateValue;
+                                    }
+                                }
+                            }
+
+                            return {
+                                id: Date.now() + index,
+                                date: formattedDate,
+                                odometer: parseFloat(row['Odometer'] || row['odometer'] || row['Odo'] || row['Mileage'] || 0),
+                                pricePerGallon: parseFloat(row['Price per Gallon'] || row['price_per_gallon'] || row['Price/Gallon'] || row['Unit Price'] || 0),
+                                gallons: parseFloat(row['Gallons'] || row['gallons'] || row['Volume'] || row['Amount'] || 0),
+                                totalCost: parseFloat(row['Total Cost'] || row['total_cost'] || row['Total'] || row['Cost'] || row['Paid'] || 0),
+                                miles: (row['Miles Driven'] || row['miles_driven'] || row['Miles']) !== '' && (row['Miles Driven'] || row['miles_driven'] || row['Miles']) !== undefined ? parseFloat(row['Miles Driven'] || row['miles_driven'] || row['Miles']) : null,
+                                mpg: (row['MPG'] || row['mpg'] || row['Efficiency']) !== '' && (row['MPG'] || row['mpg'] || row['Efficiency']) !== undefined ? parseFloat(row['MPG'] || row['mpg'] || row['Efficiency']) : null
+                            };
+                        }).filter(entry => entry.odometer > 0 && entry.gallons > 0);
+
+                        console.log('Excel Import - Raw entries found:', importedData.length);
+                        console.log('Sample entry:', importedData[0]);
+                    }
+
+                    if (importedData.length > 0) {
+                        const confirmMsg = `Found ${importedData.length} valid entries. This will replace your current data. Continue?`;
+                        if (confirm(confirmMsg)) {
+                            fillUps = importedData;
+                            fillUps.sort((a, b) => new Date(a.date) - new Date(b.date));
+                            recomputeDerivedFields();
+                            saveData();
+
+                            // Force update everything
+                            updateStats();
+                            updateHistory();
+
+                            // Small delay to ensure DOM is ready for charts
+                            setTimeout(() => {
+                                updateCharts();
+                            }, 100);
+
+                            alert(`Data imported successfully! ${importedData.length} entries loaded.`);
+
+                            // Switch to stats tab to show results
+                            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                            document.querySelectorAll('.tab')[1].classList.add('active');
+                            document.getElementById('stats-tab').classList.add('active');
+
+                            // Update charts again after tab switch
+                            setTimeout(() => {
+                                updateCharts();
+                            }, 200);
+                        }
+                    } else {
+                        alert('No valid data found in file. Make sure your file has columns for Date, Odometer, Price per Gallon, Gallons, and Total Cost.');
+                    }
+                } catch (error) {
+                    alert('Error importing file: ' + error.message);
+                    console.error('Import error:', error);
+                }
+
+                // Reset file input
+                event.target.value = '';
+            };
+
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        }
+    </script>
+</body>
+</html>
