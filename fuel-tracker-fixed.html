@@ -283,6 +283,14 @@
                         <div class="stat-label">Avg MPG</div>
                     </div>
                     <div class="stat-card">
+                        <div class="stat-value" id="avg-spent">--</div>
+                        <div class="stat-label">Avg Spent</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="avg-price-per-gallon">--</div>
+                        <div class="stat-label">Avg $/Gallon</div>
+                    </div>
+                    <div class="stat-card">
                         <div class="stat-value" id="avg-cost-per-mile">--</div>
                         <div class="stat-label">¢/Mile</div>
                     </div>
@@ -369,9 +377,17 @@
                 yearFilter.appendChild(option);
             });
 
-            // Restore previous selection if it still exists
-            if (currentValue && Array.from(yearFilter.options).some(opt => opt.value === currentValue)) {
+            // Default to latest year when possible, otherwise restore selection
+            const hasCurrent = currentValue && Array.from(yearFilter.options).some(opt => opt.value === currentValue);
+            if (sortedYears.length > 0 && (!hasCurrent || currentValue === 'all')) {
+                yearFilter.value = String(sortedYears[0]);
+                currentYearFilter = String(sortedYears[0]);
+            } else if (hasCurrent) {
                 yearFilter.value = currentValue;
+                currentYearFilter = currentValue;
+            } else {
+                yearFilter.value = 'all';
+                currentYearFilter = 'all';
             }
         }
 
@@ -538,6 +554,8 @@
 
             if (filteredData.length === 0) {
                 document.getElementById('avg-mpg').textContent = '--';
+                document.getElementById('avg-spent').textContent = '--';
+                document.getElementById('avg-price-per-gallon').textContent = '--';
                 document.getElementById('avg-cost-per-mile').textContent = '--';
                 document.getElementById('total-spent').textContent = '--';
                 document.getElementById('total-miles').textContent = '--';
@@ -553,8 +571,14 @@
             const totalSpent = filteredData.reduce((sum, f) => sum + f.totalCost, 0);
             const totalMiles = filteredData.filter(f => f.miles !== null).reduce((sum, f) => sum + f.miles, 0);
             const costPerMile = totalMiles > 0 ? (totalSpent / totalMiles) * 100 : 0; // in cents
+            const avgSpent = filteredData.length > 0 ? totalSpent / filteredData.length : 0;
+            const avgPricePerGallon = filteredData.length > 0
+                ? filteredData.reduce((sum, f) => sum + f.pricePerGallon, 0) / filteredData.length
+                : 0;
 
             document.getElementById('avg-mpg').textContent = fillUpsWithMpg.length > 0 ? avgMpg.toFixed(1) : '--';
+            document.getElementById('avg-spent').textContent = filteredData.length > 0 ? '$' + avgSpent.toFixed(2) : '--';
+            document.getElementById('avg-price-per-gallon').textContent = filteredData.length > 0 ? '$' + avgPricePerGallon.toFixed(3) : '--';
             document.getElementById('avg-cost-per-mile').textContent = totalMiles > 0 ? costPerMile.toFixed(1) : '--';
             document.getElementById('total-spent').textContent = '$' + totalSpent.toFixed(0);
             document.getElementById('total-miles').textContent = totalMiles > 0 ? totalMiles.toFixed(0) : '--';
