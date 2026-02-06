@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -227,10 +230,18 @@
             <h1>⛽ Fuel Tracker</h1>
             <p>Track your fuel economy and expenses</p>
             <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;">
-                <label for="year-filter" style="color: white; font-weight: 600;">View Year:</label>
+                <label for="vehicle-filter" style="color: white; font-weight: 600;">Vehicle:</label>
+                <select id="vehicle-filter" style="padding: 8px 15px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer;">
+                    <option value="all">All Vehicles</option>
+                </select>
+                
+                <label for="year-filter" style="color: white; font-weight: 600;">Year:</label>
                 <select id="year-filter" style="padding: 8px 15px; border-radius: 8px; border: none; font-size: 16px; font-weight: 600; cursor: pointer;">
                     <option value="all">All Years</option>
                 </select>
+                
+                <button onclick="showAdvancedFilters()" style="padding: 8px 15px; background: #4CAF50; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">🔍 Filters</button>
+                <button onclick="showExportOptions()" style="padding: 8px 15px; background: #2196F3; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">📤 Export</button>
                 <button onclick="clearAllData()" style="padding: 8px 15px; background: #ff4757; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Clear All Data</button>
             </div>
         </div>
@@ -245,6 +256,13 @@
             <!-- Add Fill-up Tab -->
             <div id="add-tab" class="tab-content active">
                 <form id="fuel-form">
+                    <div class="form-group">
+                        <label for="vehicle">Vehicle</label>
+                        <select id="vehicle" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;" required>
+                            <option value="">Select Vehicle</option>
+                        </select>
+                        <button type="button" onclick="addNewVehicle()" style="margin-top: 8px; padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">+ Add New Vehicle</button>
+                    </div>
                     <div class="form-group">
                         <label for="date">Date</label>
                         <input type="date" id="date" required>
@@ -309,6 +327,11 @@
                     <canvas id="mpg-chart"></canvas>
                 </div>
 
+                <h3 style="margin-bottom: 15px;">Monthly Spending Trends</h3>
+                <div class="chart-container">
+                    <canvas id="spending-chart"></canvas>
+                </div>
+
                 <h3 style="margin-bottom: 15px;">Cost per Gallon Trend</h3>
                 <div class="chart-container">
                     <canvas id="price-chart"></canvas>
@@ -327,23 +350,119 @@
                 <div id="fill-log" class="fill-log"></div>
             </div>
         </div>
+
+        <!-- Advanced Filters Modal -->
+        <div id="filters-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+            <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                <h2 style="margin-bottom: 20px;">Advanced Filters</h2>
+                
+                <div class="form-group">
+                    <label for="filter-date-start">Start Date</label>
+                    <input type="date" id="filter-date-start">
+                </div>
+                
+                <div class="form-group">
+                    <label for="filter-date-end">End Date</label>
+                    <input type="date" id="filter-date-end">
+                </div>
+                
+                <div class="form-group">
+                    <label for="filter-price-min">Min Price per Gallon ($)</label>
+                    <input type="number" id="filter-price-min" step="0.01" placeholder="0.00">
+                </div>
+                
+                <div class="form-group">
+                    <label for="filter-price-max">Max Price per Gallon ($)</label>
+                    <input type="number" id="filter-price-max" step="0.01" placeholder="10.00">
+                </div>
+                
+                <div class="form-group">
+                    <label for="filter-mpg-min">Min MPG</label>
+                    <input type="number" id="filter-mpg-min" step="0.1" placeholder="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="filter-mpg-max">Max MPG</label>
+                    <input type="number" id="filter-mpg-max" step="0.1" placeholder="50">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="applyAdvancedFilters()" class="btn">Apply Filters</button>
+                    <button onclick="clearAdvancedFilters()" style="flex: 1; padding: 15px; background: #95a5a6; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Clear Filters</button>
+                    <button onclick="closeAdvancedFilters()" style="flex: 1; padding: 15px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Options Modal -->
+        <div id="export-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+            <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
+                <h2 style="margin-bottom: 20px;">Export Options</h2>
+                
+                <button onclick="exportToCSV()" class="btn" style="margin-bottom: 10px;">📥 Export to CSV</button>
+                <button onclick="exportToPDF()" class="btn" style="margin-bottom: 10px;">📄 Export PDF Report</button>
+                <button onclick="exportSummaryImage()" class="btn" style="margin-bottom: 10px;">📊 Export Stats as Image</button>
+                
+                <button onclick="closeExportOptions()" style="width: 100%; margin-top: 10px; padding: 15px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Close</button>
+            </div>
+        </div>
     </div>
 
     <script>
         let fillUps = [];
+        let vehicles = [];
         let mpgChart = null;
         let priceChart = null;
+        let spendingChart = null;
         let currentYearFilter = 'all';
+        let currentVehicleFilter = 'all';
+        let advancedFilters = {
+            dateStart: null,
+            dateEnd: null,
+            priceMin: null,
+            priceMax: null,
+            mpgMin: null,
+            mpgMax: null
+        };
 
-        // Get filtered data based on selected year
+        // Get filtered data based on all active filters
         function getFilteredData() {
-            if (currentYearFilter === 'all') {
-                return fillUps;
+            let filtered = fillUps;
+            
+            // Vehicle filter
+            if (currentVehicleFilter !== 'all') {
+                filtered = filtered.filter(fill => fill.vehicle === currentVehicleFilter);
             }
-            return fillUps.filter(fill => {
-                const year = new Date(fill.date).getFullYear();
-                return year === parseInt(currentYearFilter);
-            });
+            
+            // Year filter
+            if (currentYearFilter !== 'all') {
+                filtered = filtered.filter(fill => {
+                    const year = new Date(fill.date).getFullYear();
+                    return year === parseInt(currentYearFilter);
+                });
+            }
+            
+            // Advanced filters
+            if (advancedFilters.dateStart) {
+                filtered = filtered.filter(fill => fill.date >= advancedFilters.dateStart);
+            }
+            if (advancedFilters.dateEnd) {
+                filtered = filtered.filter(fill => fill.date <= advancedFilters.dateEnd);
+            }
+            if (advancedFilters.priceMin !== null) {
+                filtered = filtered.filter(fill => fill.pricePerGallon >= advancedFilters.priceMin);
+            }
+            if (advancedFilters.priceMax !== null) {
+                filtered = filtered.filter(fill => fill.pricePerGallon <= advancedFilters.priceMax);
+            }
+            if (advancedFilters.mpgMin !== null) {
+                filtered = filtered.filter(fill => fill.mpg !== null && fill.mpg >= advancedFilters.mpgMin);
+            }
+            if (advancedFilters.mpgMax !== null) {
+                filtered = filtered.filter(fill => fill.mpg !== null && fill.mpg <= advancedFilters.mpgMax);
+            }
+            
+            return filtered;
         }
 
         // Load data from localStorage
@@ -352,7 +471,24 @@
             if (saved) {
                 fillUps = JSON.parse(saved);
             }
+            
+            const savedVehicles = localStorage.getItem('fuelTrackerVehicles');
+            if (savedVehicles) {
+                vehicles = JSON.parse(savedVehicles);
+            } else {
+                // Default vehicle if none exist
+                vehicles = ['My Vehicle'];
+                saveVehicles();
+            }
+            
             populateYearFilter();
+            populateVehicleFilter();
+            populateVehicleDropdown();
+        }
+        
+        // Save vehicles to localStorage
+        function saveVehicles() {
+            localStorage.setItem('fuelTrackerVehicles', JSON.stringify(vehicles));
         }
 
         // Populate year filter dropdown
@@ -391,6 +527,71 @@
             }
         }
 
+        // Populate vehicle filter dropdown
+        function populateVehicleFilter() {
+            const vehicleFilter = document.getElementById('vehicle-filter');
+            const currentValue = vehicleFilter.value;
+            
+            vehicleFilter.innerHTML = '<option value="all">All Vehicles</option>';
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle;
+                option.textContent = vehicle;
+                vehicleFilter.appendChild(option);
+            });
+            
+            if (currentValue && Array.from(vehicleFilter.options).some(opt => opt.value === currentValue)) {
+                vehicleFilter.value = currentValue;
+            }
+        }
+        
+        // Populate vehicle dropdown in form
+        function populateVehicleDropdown() {
+            const vehicleDropdown = document.getElementById('vehicle');
+            const currentValue = vehicleDropdown.value;
+            
+            vehicleDropdown.innerHTML = '<option value="">Select Vehicle</option>';
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle;
+                option.textContent = vehicle;
+                vehicleDropdown.appendChild(option);
+            });
+            
+            if (currentValue && vehicles.includes(currentValue)) {
+                vehicleDropdown.value = currentValue;
+            } else if (vehicles.length === 1) {
+                vehicleDropdown.value = vehicles[0];
+            }
+        }
+        
+        // Add new vehicle
+        function addNewVehicle() {
+            const vehicleName = prompt('Enter vehicle name (e.g., "2022 Toyota Tacoma"):');
+            if (vehicleName && vehicleName.trim()) {
+                const trimmedName = vehicleName.trim();
+                if (!vehicles.includes(trimmedName)) {
+                    vehicles.push(trimmedName);
+                    saveVehicles();
+                    populateVehicleFilter();
+                    populateVehicleDropdown();
+                    document.getElementById('vehicle').value = trimmedName;
+                } else {
+                    alert('Vehicle already exists!');
+                }
+            }
+        }
+
+        // Handle vehicle filter change
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('vehicle-filter').addEventListener('change', function(e) {
+                currentVehicleFilter = e.target.value;
+                updateStats();
+                updateHistory();
+                updateCharts();
+            });
+        });
+
         // Handle year filter change
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('year-filter').addEventListener('change', function(e) {
@@ -416,6 +617,59 @@
                     alert('All data has been cleared.');
                 }
             }
+        }
+
+        // Advanced Filters Functions
+        function showAdvancedFilters() {
+            document.getElementById('filters-modal').style.display = 'flex';
+        }
+        
+        function closeAdvancedFilters() {
+            document.getElementById('filters-modal').style.display = 'none';
+        }
+        
+        function applyAdvancedFilters() {
+            advancedFilters.dateStart = document.getElementById('filter-date-start').value || null;
+            advancedFilters.dateEnd = document.getElementById('filter-date-end').value || null;
+            advancedFilters.priceMin = parseFloat(document.getElementById('filter-price-min').value) || null;
+            advancedFilters.priceMax = parseFloat(document.getElementById('filter-price-max').value) || null;
+            advancedFilters.mpgMin = parseFloat(document.getElementById('filter-mpg-min').value) || null;
+            advancedFilters.mpgMax = parseFloat(document.getElementById('filter-mpg-max').value) || null;
+            
+            updateStats();
+            updateHistory();
+            updateCharts();
+            closeAdvancedFilters();
+        }
+        
+        function clearAdvancedFilters() {
+            advancedFilters = {
+                dateStart: null,
+                dateEnd: null,
+                priceMin: null,
+                priceMax: null,
+                mpgMin: null,
+                mpgMax: null
+            };
+            document.getElementById('filter-date-start').value = '';
+            document.getElementById('filter-date-end').value = '';
+            document.getElementById('filter-price-min').value = '';
+            document.getElementById('filter-price-max').value = '';
+            document.getElementById('filter-mpg-min').value = '';
+            document.getElementById('filter-mpg-max').value = '';
+            
+            updateStats();
+            updateHistory();
+            updateCharts();
+        }
+
+        // Export Functions
+        function showExportOptions() {
+            document.getElementById('export-modal').style.display = 'flex';
+        }
+        
+        function closeExportOptions() {
+            document.getElementById('export-modal').style.display = 'none';
         }
 
         // Save data to localStorage
@@ -513,6 +767,7 @@
 
             const fillUp = {
                 id: Date.now(),
+                vehicle: document.getElementById('vehicle').value,
                 date: document.getElementById('date').value,
                 pricePerGallon: parseFloat(document.getElementById('price-per-gallon').value),
                 gallons: parseFloat(document.getElementById('gallons').value),
@@ -647,7 +902,7 @@
             logDiv.innerHTML = filteredData.slice().reverse().map(fill => `
                 <div class="fill-item">
                     <div class="fill-details">
-                        <div class="fill-date">${formatDateLocal(fill.date)}</div>
+                        <div class="fill-date">${formatDateLocal(fill.date)}${fill.vehicle ? ' • ' + fill.vehicle : ''}</div>
                         <div class="fill-info">
                             ${fill.mpg !== null ? fill.mpg + ' MPG • ' : ''}${Number(fill.gallons).toFixed(3)} gal @ $${Number(fill.pricePerGallon).toFixed(3)}/gal • Odometer: ${fill.odometer.toFixed(1)}
                         </div>
@@ -747,6 +1002,60 @@
                 }
             });
 
+            // Monthly Spending Chart
+            const spendingCtx = document.getElementById('spending-chart').getContext('2d');
+            if (spendingChart) spendingChart.destroy();
+            
+            // Group data by month
+            const monthlyData = {};
+            filteredData.forEach(fill => {
+                const date = new Date(fill.date);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = 0;
+                }
+                monthlyData[monthKey] += fill.totalCost;
+            });
+            
+            const monthLabels = Object.keys(monthlyData).sort().map(key => {
+                const [year, month] = key.split('-');
+                return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            });
+            const monthlySpending = Object.keys(monthlyData).sort().map(key => monthlyData[key]);
+            
+            spendingChart = new Chart(spendingCtx, {
+                type: 'bar',
+                data: {
+                    labels: monthLabels,
+                    datasets: [{
+                        label: 'Monthly Spending',
+                        data: monthlySpending,
+                        backgroundColor: 'rgba(76, 175, 80, 0.6)',
+                        borderColor: '#4CAF50',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
             // Price Chart
             const priceCtx = document.getElementById('price-chart').getContext('2d');
             if (priceChart) priceChart.destroy();
@@ -793,9 +1102,10 @@
                 return;
             }
 
-            const headers = ['Date', 'Odometer', 'Price per Gallon', 'Gallons', 'Total Cost', 'Miles Driven', 'MPG', 'Skip MPG'];
+            const headers = ['Date', 'Vehicle', 'Odometer', 'Price per Gallon', 'Gallons', 'Total Cost', 'Miles Driven', 'MPG', 'Skip MPG'];
             const rows = fillUps.map(fill => [
                 fill.date,
+                fill.vehicle || '',
                 fill.odometer,
                 Number(fill.pricePerGallon).toFixed(3),
                 Number(fill.gallons).toFixed(3),
@@ -837,12 +1147,13 @@
 
                     // Find column indices (flexible column naming)
                     const dateIdx = headers.findIndex(h => h.includes('date') || h.includes('time'));
+                    const vehicleIdx = headers.findIndex(h => h.includes('vehicle'));
                     const odometerIdx = headers.findIndex(h => h.includes('odometer') || h.includes('odo') || h.includes('mileage'));
                     const priceIdx = headers.findIndex(h => h.includes('price') && (h.includes('gallon') || h.includes('per') || h.includes('unit')));
-                    const gallonsIdx = headers.findIndex(h => h.includes('gallon') || h.includes('volume') || h.includes('amount'));
+                    const gallonsIdx = headers.findIndex(h => h.includes('gallon') || h.includes('volume') || h.includes('amount') || h.includes('quantity'));
                     const totalIdx = headers.findIndex(h => (h.includes('total') || h.includes('cost') || h.includes('paid')) && !h.includes('per'));
                     const milesIdx = headers.findIndex(h => h.includes('miles') && h.includes('driven'));
-                    const mpgIdx = headers.findIndex(h => h.includes('mpg') || h.includes('efficiency'));
+                    const mpgIdx = headers.findIndex(h => h.includes('mpg') || h.includes('efficiency') || (h.includes('fuel') && h.includes('economy')));
                     const skipMpgIdx = headers.findIndex(h => h.includes('skip') && h.includes('mpg'));
 
                     for (let i = 1; i < lines.length; i++) {
@@ -874,9 +1185,18 @@
 
                         // Check Skip MPG flag
                         const skipMpg = skipMpgIdx >= 0 && values[skipMpgIdx] === '1';
+                        
+                        // Get vehicle name
+                        const vehicleName = vehicleIdx >= 0 && values[vehicleIdx] ? values[vehicleIdx].trim() : '';
+                        
+                        // Add vehicle to list if not exists
+                        if (vehicleName && !vehicles.includes(vehicleName)) {
+                            vehicles.push(vehicleName);
+                        }
 
                         const entry = {
                             id: Date.now() + i,
+                            vehicle: vehicleName,
                             date: formattedDate,
                             odometer: odometerIdx >= 0 ? parseFloat(values[odometerIdx]) : 0,
                             pricePerGallon: priceIdx >= 0 ? parseFloat(values[priceIdx]) : 0,
@@ -903,6 +1223,9 @@
                             fillUps.sort((a, b) => new Date(a.date) - new Date(b.date));
                             recomputeDerivedFields();
                             saveData();
+                            saveVehicles();
+                            populateVehicleFilter();
+                            populateVehicleDropdown();
 
                             // Force update everything
                             updateStats();
@@ -939,6 +1262,127 @@
             };
 
             reader.readAsText(file);
+        }
+
+        // Export PDF Report
+        async function exportToPDF() {
+            const filteredData = getFilteredData();
+            if (filteredData.length === 0) {
+                alert('No data to export!');
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Title
+                doc.setFontSize(20);
+                doc.text('Fuel Tracker Report', 20, 20);
+                
+                // Date range
+                doc.setFontSize(12);
+                const dates = filteredData.map(f => f.date).sort();
+                doc.text(`Period: ${dates[0]} to ${dates[dates.length - 1]}`, 20, 30);
+                
+                // Vehicle filter
+                if (currentVehicleFilter !== 'all') {
+                    doc.text(`Vehicle: ${currentVehicleFilter}`, 20, 38);
+                }
+                
+                // Summary Stats
+                doc.setFontSize(14);
+                doc.text('Summary Statistics', 20, 50);
+                doc.setFontSize(11);
+                
+                const fillUpsWithMpg = filteredData.filter(f => f.mpg !== null);
+                const avgMpg = fillUpsWithMpg.length > 0 
+                    ? (fillUpsWithMpg.reduce((sum, f) => sum + parseFloat(f.mpg), 0) / fillUpsWithMpg.length).toFixed(1)
+                    : 'N/A';
+                const totalSpent = filteredData.reduce((sum, f) => sum + f.totalCost, 0).toFixed(2);
+                const totalMiles = filteredData.filter(f => f.miles !== null).reduce((sum, f) => sum + f.miles, 0).toFixed(0);
+                const avgPrice = (filteredData.reduce((sum, f) => sum + f.pricePerGallon, 0) / filteredData.length).toFixed(3);
+                
+                let yPos = 60;
+                doc.text(`Total Fill-ups: ${filteredData.length}`, 20, yPos);
+                doc.text(`Average MPG: ${avgMpg}`, 20, yPos + 8);
+                doc.text(`Total Spent: $${totalSpent}`, 20, yPos + 16);
+                doc.text(`Total Miles: ${totalMiles}`, 20, yPos + 24);
+                doc.text(`Average Price/Gallon: $${avgPrice}`, 20, yPos + 32);
+                
+                // Recent Fill-ups (last 10)
+                doc.setFontSize(14);
+                doc.text('Recent Fill-ups', 20, yPos + 50);
+                doc.setFontSize(9);
+                
+                const recent = filteredData.slice(-10).reverse();
+                let tableY = yPos + 58;
+                
+                doc.text('Date', 20, tableY);
+                doc.text('Gallons', 60, tableY);
+                doc.text('Price', 90, tableY);
+                doc.text('Total', 120, tableY);
+                doc.text('MPG', 150, tableY);
+                
+                tableY += 6;
+                recent.forEach(fill => {
+                    if (tableY > 270) {
+                        doc.addPage();
+                        tableY = 20;
+                    }
+                    doc.text(fill.date, 20, tableY);
+                    doc.text(fill.gallons.toFixed(2), 60, tableY);
+                    doc.text('$' + fill.pricePerGallon.toFixed(2), 90, tableY);
+                    doc.text('$' + fill.totalCost.toFixed(2), 120, tableY);
+                    doc.text(fill.mpg ? fill.mpg.toString() : 'N/A', 150, tableY);
+                    tableY += 6;
+                });
+                
+                doc.save('fuel-tracker-report-' + new Date().toISOString().split('T')[0] + '.pdf');
+                closeExportOptions();
+            } catch (error) {
+                alert('Error creating PDF: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        // Export Stats as Image
+        async function exportSummaryImage() {
+            const statsTab = document.getElementById('stats-tab');
+            
+            // Temporarily switch to stats tab if not already there
+            const wasHidden = !statsTab.classList.contains('active');
+            if (wasHidden) {
+                statsTab.classList.add('active');
+                updateCharts();
+                await new Promise(resolve => setTimeout(resolve, 500)); // Wait for charts to render
+            }
+            
+            try {
+                const canvas = await html2canvas(statsTab, {
+                    backgroundColor: '#ffffff',
+                    scale: 2
+                });
+                
+                // Convert to blob and download
+                canvas.toBlob(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'fuel-tracker-stats-' + new Date().toISOString().split('T')[0] + '.png';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    closeExportOptions();
+                });
+            } catch (error) {
+                alert('Error creating image: ' + error.message);
+                console.error(error);
+            } finally {
+                if (wasHidden) {
+                    statsTab.classList.remove('active');
+                }
+            }
         }
     </script>
 </body>
