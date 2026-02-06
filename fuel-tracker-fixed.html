@@ -565,25 +565,36 @@
         function recomputeDerivedFields() {
             fillUps.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-            let lastOdometer = null;
-
             fillUps.forEach((f, index) => {
-                // Only recompute if miles/mpg are null or undefined (not already set from import)
-                if ((f.miles === null || f.miles === undefined) && lastOdometer !== null && f.odometer > lastOdometer) {
-                    f.miles = f.odometer - lastOdometer;
+                // First fill-up should never have miles/mpg calculated
+                if (index === 0) {
+                    if (f.miles === null || f.miles === undefined) {
+                        f.miles = null;
+                    }
+                    if (f.mpg === null || f.mpg === undefined) {
+                        f.mpg = null;
+                    }
+                    f.skipMpg = true; // Mark first entry to skip MPG
+                    return;
+                }
+
+                // If explicitly marked to skip, don't recalculate
+                if (f.skipMpg) {
+                    f.miles = null;
+                    f.mpg = null;
+                    return;
+                }
+
+                // For subsequent fill-ups, only recompute if miles/mpg are null or undefined
+                const lastFillUp = fillUps[index - 1];
+                
+                if ((f.miles === null || f.miles === undefined) && f.odometer > lastFillUp.odometer) {
+                    f.miles = f.odometer - lastFillUp.odometer;
                 }
                 
                 if ((f.mpg === null || f.mpg === undefined) && f.miles !== null && f.gallons > 0) {
                     f.mpg = +(f.miles / f.gallons).toFixed(2);
                 }
-                
-                // Set to null only if this is the first entry or odometer didn't increase
-                if (f.miles === undefined && (lastOdometer === null || f.odometer <= lastOdometer)) {
-                    f.miles = null;
-                    f.mpg = null;
-                }
-                
-                lastOdometer = f.odometer;
             });
         }
 
@@ -760,7 +771,7 @@
                 return;
             }
 
-            const headers = ['Date', 'Odometer', 'Price per Gallon', 'Gallons', 'Total Cost', 'Miles Driven', 'MPG'];
+            const headers = ['Date', 'Odometer', 'Price per Gallon', 'Gallons', 'Total Cost', 'Miles Driven', 'MPG', 'Skip MPG'];
             const rows = fillUps.map(fill => [
                 fill.date,
                 fill.odometer,
@@ -768,7 +779,8 @@
                 Number(fill.gallons).toFixed(3),
                 fill.totalCost.toFixed(2),
                 fill.miles !== null ? fill.miles.toFixed(2) : '',
-                fill.mpg !== null ? fill.mpg : ''
+                fill.mpg !== null ? fill.mpg : '',
+                (fill.miles === null || fill.mpg === null) ? 1 : 0
             ]);
 
             let csvContent = headers.join(',') + '\n';
@@ -799,7 +811,8 @@
                 'Gallons': fill.gallons,
                 'Total Cost': fill.totalCost,
                 'Miles Driven': fill.miles !== null ? fill.miles : '',
-                'MPG': fill.mpg !== null ? fill.mpg : ''
+                'MPG': fill.mpg !== null ? fill.mpg : '',
+                'Skip MPG': fill.skipMpg ? 1 : 0
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(data);
@@ -834,6 +847,7 @@
                         const totalIdx = headers.findIndex(h => (h.includes('total') || h.includes('cost') || h.includes('paid')) && !h.includes('per'));
                         const milesIdx = headers.findIndex(h => h.includes('miles') && h.includes('driven'));
                         const mpgIdx = headers.findIndex(h => h.includes('mpg') || h.includes('efficiency'));
+                        const skipMpgIdx = headers.findIndex(h => h.includes('skip') && h.includes('mpg'));
 
                         for (let i = 1; i < lines.length; i++) {
                             if (lines[i].trim() === '') continue;
@@ -862,6 +876,9 @@
                                 }
                              }
 
+                            // Check Skip MPG flag
+                            const skipMpg = skipMpgIdx >= 0 && values[skipMpgIdx] === '1';
+
                             const entry = {
                                 id: Date.now() + i,
                                 date: formattedDate,
@@ -870,7 +887,8 @@
                                 gallons: gallonsIdx >= 0 ? parseFloat(values[gallonsIdx]) : 0,
                                 totalCost: totalIdx >= 0 ? parseFloat(values[totalIdx]) : 0,
                                 miles: milesIdx >= 0 && values[milesIdx] !== '' ? parseFloat(values[milesIdx]) : null,
-                                mpg: mpgIdx >= 0 && values[mpgIdx] !== '' ? parseFloat(values[mpgIdx]) : null
+                                mpg: mpgIdx >= 0 && values[mpgIdx] !== '' ? parseFloat(values[mpgIdx]) : null,
+                                skipMpg: skipMpg
                             };
 
                             // Skip invalid entries
@@ -908,6 +926,9 @@
                                 }
                             }
 
+                            // Check Skip MPG flag
+                            const skipMpg = (row['Skip MPG'] || row['skip_mpg']) === 1;
+
                             return {
                                 id: Date.now() + index,
                                 date: formattedDate,
@@ -916,7 +937,8 @@
                                 gallons: parseFloat(row['Gallons'] || row['gallons'] || row['Volume'] || row['Amount'] || 0),
                                 totalCost: parseFloat(row['Total Cost'] || row['total_cost'] || row['Total'] || row['Cost'] || row['Paid'] || 0),
                                 miles: (row['Miles Driven'] || row['miles_driven'] || row['Miles']) !== '' && (row['Miles Driven'] || row['miles_driven'] || row['Miles']) !== undefined ? parseFloat(row['Miles Driven'] || row['miles_driven'] || row['Miles']) : null,
-                                mpg: (row['MPG'] || row['mpg'] || row['Efficiency']) !== '' && (row['MPG'] || row['mpg'] || row['Efficiency']) !== undefined ? parseFloat(row['MPG'] || row['mpg'] || row['Efficiency']) : null
+                                mpg: (row['MPG'] || row['mpg'] || row['Efficiency']) !== '' && (row['MPG'] || row['mpg'] || row['Efficiency']) !== undefined ? parseFloat(row['MPG'] || row['mpg'] || row['Efficiency']) : null,
+                                skipMpg: skipMpg
                             };
                         }).filter(entry => entry.odometer > 0 && entry.gallons > 0);
 
