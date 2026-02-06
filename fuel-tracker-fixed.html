@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -312,10 +311,9 @@
             <div id="history-tab" class="tab-content">
                 <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn" style="flex: 1; min-width: 150px;" onclick="exportToCSV()">📥 Export to CSV</button>
-                    <button class="btn" style="flex: 1; min-width: 150px;" onclick="exportToExcel()">📥 Export to Excel</button>
                     <label class="btn" style="flex: 1; min-width: 150px; cursor: pointer; text-align: center;">
-                        📤 Import File
-                        <input type="file" id="import-file" accept=".csv,.xlsx,.xls" style="display: none;" onchange="importFile(event)">
+                        📤 Import CSV
+                        <input type="file" id="import-file" accept=".csv" style="display: none;" onchange="importFile(event)">
                     </label>
                 </div>
                 <div id="fill-log" class="fill-log"></div>
@@ -797,32 +795,7 @@
             window.URL.revokeObjectURL(url);
         }
 
-        // Export to Excel
-        function exportToExcel() {
-            if (fillUps.length === 0) {
-                alert('No data to export!');
-                return;
-            }
-
-            const data = fillUps.map(fill => ({
-                'Date': fill.date,
-                'Odometer': fill.odometer,
-                'Price per Gallon': fill.pricePerGallon,
-                'Gallons': fill.gallons,
-                'Total Cost': fill.totalCost,
-                'Miles Driven': fill.miles !== null ? fill.miles : '',
-                'MPG': fill.mpg !== null ? fill.mpg : '',
-                'Skip MPG': fill.skipMpg ? 1 : 0
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(data);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Fuel Data');
-
-            XLSX.writeFile(workbook, 'fuel-tracker-' + new Date().toISOString().split('T')[0] + '.xlsx');
-        }
-
-        // Import file (CSV or Excel)
+        // Import CSV
         function importFile(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -833,118 +806,71 @@
                 try {
                     let importedData = [];
 
-                    if (file.name.endsWith('.csv')) {
-                        // Parse CSV
-                        const text = e.target.result;
-                        const lines = text.split('\n');
-                        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                    // Parse CSV
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
 
-                        // Find column indices (flexible column naming)
-                        const dateIdx = headers.findIndex(h => h.includes('date') || h.includes('time'));
-                        const odometerIdx = headers.findIndex(h => h.includes('odometer') || h.includes('odo') || h.includes('mileage'));
-                        const priceIdx = headers.findIndex(h => h.includes('price') && (h.includes('gallon') || h.includes('per') || h.includes('unit')));
-                        const gallonsIdx = headers.findIndex(h => h.includes('gallon') || h.includes('volume') || h.includes('amount'));
-                        const totalIdx = headers.findIndex(h => (h.includes('total') || h.includes('cost') || h.includes('paid')) && !h.includes('per'));
-                        const milesIdx = headers.findIndex(h => h.includes('miles') && h.includes('driven'));
-                        const mpgIdx = headers.findIndex(h => h.includes('mpg') || h.includes('efficiency'));
-                        const skipMpgIdx = headers.findIndex(h => h.includes('skip') && h.includes('mpg'));
+                    // Find column indices (flexible column naming)
+                    const dateIdx = headers.findIndex(h => h.includes('date') || h.includes('time'));
+                    const odometerIdx = headers.findIndex(h => h.includes('odometer') || h.includes('odo') || h.includes('mileage'));
+                    const priceIdx = headers.findIndex(h => h.includes('price') && (h.includes('gallon') || h.includes('per') || h.includes('unit')));
+                    const gallonsIdx = headers.findIndex(h => h.includes('gallon') || h.includes('volume') || h.includes('amount'));
+                    const totalIdx = headers.findIndex(h => (h.includes('total') || h.includes('cost') || h.includes('paid')) && !h.includes('per'));
+                    const milesIdx = headers.findIndex(h => h.includes('miles') && h.includes('driven'));
+                    const mpgIdx = headers.findIndex(h => h.includes('mpg') || h.includes('efficiency'));
+                    const skipMpgIdx = headers.findIndex(h => h.includes('skip') && h.includes('mpg'));
 
-                        for (let i = 1; i < lines.length; i++) {
-                            if (lines[i].trim() === '') continue;
+                    for (let i = 1; i < lines.length; i++) {
+                        if (lines[i].trim() === '') continue;
 
-                            const values = lines[i].split(',').map(v => v.trim());
+                        const values = lines[i].split(',').map(v => v.trim());
 
-                            // Parse date flexibly
-                            let dateValue = values[dateIdx];
-                            let formattedDate = '';
+                        // Parse date flexibly
+                        let dateValue = values[dateIdx];
+                        let formattedDate = '';
 
-                            if (dateValue) {
-                                // Strip time if present (anything after space)
-                                const datePart = dateValue.split(' ')[0];
+                        if (dateValue) {
+                            // Strip time if present (anything after space)
+                            const datePart = dateValue.split(' ')[0];
 
-                                // Handle MM/DD/YYYY or M/D/YYYY
-                                const mdy = datePart.split('/');
-                                if (mdy.length === 3) {
-                                    const month = mdy[0].padStart(2, '0');
-                                    const day   = mdy[1].padStart(2, '0');
-                                    const year  = mdy[2];
-                                    formattedDate = `${year}-${month}-${day}`;
-                                }
-                                // Handle YYYY-MM-DD
-                                else if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-                                    formattedDate = datePart;
-                                }
-                             }
-
-                            // Check Skip MPG flag
-                            const skipMpg = skipMpgIdx >= 0 && values[skipMpgIdx] === '1';
-
-                            const entry = {
-                                id: Date.now() + i,
-                                date: formattedDate,
-                                odometer: odometerIdx >= 0 ? parseFloat(values[odometerIdx]) : 0,
-                                pricePerGallon: priceIdx >= 0 ? parseFloat(values[priceIdx]) : 0,
-                                gallons: gallonsIdx >= 0 ? parseFloat(values[gallonsIdx]) : 0,
-                                totalCost: totalIdx >= 0 ? parseFloat(values[totalIdx]) : 0,
-                                miles: milesIdx >= 0 && values[milesIdx] !== '' ? parseFloat(values[milesIdx]) : null,
-                                mpg: mpgIdx >= 0 && values[mpgIdx] !== '' ? parseFloat(values[mpgIdx]) : null,
-                                skipMpg: skipMpg
-                            };
-
-                            // Skip invalid entries
-                            if (entry.odometer > 0 && entry.gallons > 0) {
-                                importedData.push(entry);
+                            // Handle MM/DD/YYYY or M/D/YYYY
+                            const mdy = datePart.split('/');
+                            if (mdy.length === 3) {
+                                const month = mdy[0].padStart(2, '0');
+                                const day   = mdy[1].padStart(2, '0');
+                                const year  = mdy[2];
+                                formattedDate = `${year}-${month}-${day}`;
                             }
+                            // Handle YYYY-MM-DD
+                            else if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+                                formattedDate = datePart;
+                            }
+                         }
+
+                        // Check Skip MPG flag
+                        const skipMpg = skipMpgIdx >= 0 && values[skipMpgIdx] === '1';
+
+                        const entry = {
+                            id: Date.now() + i,
+                            date: formattedDate,
+                            odometer: odometerIdx >= 0 ? parseFloat(values[odometerIdx]) : 0,
+                            pricePerGallon: priceIdx >= 0 ? parseFloat(values[priceIdx]) : 0,
+                            gallons: gallonsIdx >= 0 ? parseFloat(values[gallonsIdx]) : 0,
+                            totalCost: totalIdx >= 0 ? parseFloat(values[totalIdx]) : 0,
+                            miles: milesIdx >= 0 && values[milesIdx] !== '' ? parseFloat(values[milesIdx]) : null,
+                            mpg: mpgIdx >= 0 && values[mpgIdx] !== '' ? parseFloat(values[mpgIdx]) : null,
+                            skipMpg: skipMpg
+                        };
+
+                        // Skip invalid entries
+                        if (entry.odometer > 0 && entry.gallons > 0) {
+                            importedData.push(entry);
                         }
-
-                        console.log('CSV Import - Raw entries found:', importedData.length);
-                        console.log('Sample entry:', importedData[0]);
-                    } else {
-                        // Parse Excel
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-
-                        importedData = jsonData.map((row, index) => {
-                            // Find date field (flexible naming)
-                            let dateValue = row['Date'] || row['date'] || row['DateTime'] || row['Time'] || row['timestamp'];
-                            let formattedDate = '';
-
-                            if (dateValue) {
-                                // Excel dates might be serial numbers
-                                if (typeof dateValue === 'number') {
-                                    const excelDate = XLSX.SSF.parse_date_code(dateValue);
-                                    formattedDate = `${excelDate.y}-${String(excelDate.m).padStart(2, '0')}-${String(excelDate.d).padStart(2, '0')}`;
-                                } else {
-                                    const parsedDate = new Date(dateValue);
-                                    if (!isNaN(parsedDate.getTime())) {
-                                        formattedDate = parsedDate.toISOString().split('T')[0];
-                                    } else {
-                                        formattedDate = dateValue;
-                                    }
-                                }
-                            }
-
-                            // Check Skip MPG flag
-                            const skipMpg = (row['Skip MPG'] || row['skip_mpg']) === 1;
-
-                            return {
-                                id: Date.now() + index,
-                                date: formattedDate,
-                                odometer: parseFloat(row['Odometer'] || row['odometer'] || row['Odo'] || row['Mileage'] || 0),
-                                pricePerGallon: parseFloat(row['Price per Gallon'] || row['price_per_gallon'] || row['Price/Gallon'] || row['Unit Price'] || 0),
-                                gallons: parseFloat(row['Gallons'] || row['gallons'] || row['Volume'] || row['Amount'] || 0),
-                                totalCost: parseFloat(row['Total Cost'] || row['total_cost'] || row['Total'] || row['Cost'] || row['Paid'] || 0),
-                                miles: (row['Miles Driven'] || row['miles_driven'] || row['Miles']) !== '' && (row['Miles Driven'] || row['miles_driven'] || row['Miles']) !== undefined ? parseFloat(row['Miles Driven'] || row['miles_driven'] || row['Miles']) : null,
-                                mpg: (row['MPG'] || row['mpg'] || row['Efficiency']) !== '' && (row['MPG'] || row['mpg'] || row['Efficiency']) !== undefined ? parseFloat(row['MPG'] || row['mpg'] || row['Efficiency']) : null,
-                                skipMpg: skipMpg
-                            };
-                        }).filter(entry => entry.odometer > 0 && entry.gallons > 0);
-
-                        console.log('Excel Import - Raw entries found:', importedData.length);
-                        console.log('Sample entry:', importedData[0]);
                     }
+
+                    console.log('CSV Import - Raw entries found:', importedData.length);
+                    console.log('Sample entry:', importedData[0]);
 
                     if (importedData.length > 0) {
                         const confirmMsg = `Found ${importedData.length} valid entries. This will replace your current data. Continue?`;
@@ -988,11 +914,7 @@
                 event.target.value = '';
             };
 
-            if (file.name.endsWith('.csv')) {
-                reader.readAsText(file);
-            } else {
-                reader.readAsArrayBuffer(file);
-            }
+            reader.readAsText(file);
         }
     </script>
 </body>
