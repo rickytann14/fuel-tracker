@@ -222,6 +222,52 @@
             margin-bottom: 15px;
             opacity: 0.5;
         }
+
+        .bulk-actions {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .bulk-actions button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .select-all-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .assign-vehicle-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .assign-vehicle-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .fill-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .fill-item.selected {
+            background: #e8f0ff;
+            border: 2px solid #667eea;
+        }
     </style>
 </head>
 <body>
@@ -261,7 +307,10 @@
                         <select id="vehicle" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;" required>
                             <option value="">Select Vehicle</option>
                         </select>
-                        <button type="button" onclick="addNewVehicle()" style="margin-top: 8px; padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">+ Add New Vehicle</button>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <button type="button" onclick="addNewVehicle()" style="flex: 1; padding: 8px 12px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">+ Add New Vehicle</button>
+                            <button type="button" onclick="showManageVehicles()" style="flex: 1; padding: 8px 12px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">📝 Manage Vehicles</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="date">Date</label>
@@ -342,11 +391,19 @@
             <div id="history-tab" class="tab-content">
                 <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="btn" style="flex: 1; min-width: 150px;" onclick="exportToCSV()">📥 Export to CSV</button>
-                    <label class="btn" style="flex: 1; min-width: 150px; cursor: pointer; text-align: center;">
+                    <button class="btn" style="flex: 1; min-width: 150px; cursor: pointer; text-align: center;" onclick="document.getElementById('import-file').click()">
                         📤 Import CSV
                         <input type="file" id="import-file" accept=".csv" style="display: none;" onchange="importFile(event)">
-                    </label>
+                    </button>
                 </div>
+                
+                <!-- Bulk Actions -->
+                <div class="bulk-actions">
+                    <button class="select-all-btn" onclick="toggleSelectAll()">Select All</button>
+                    <button class="assign-vehicle-btn" id="assign-vehicle-btn" onclick="showAssignVehicleModal()" disabled>Assign Vehicle (<span id="selected-count">0</span>)</button>
+                    <span style="color: #666; font-size: 14px;">Select fill-ups to assign a vehicle</span>
+                </div>
+                
                 <div id="fill-log" class="fill-log"></div>
             </div>
         </div>
@@ -406,6 +463,40 @@
                 <button onclick="closeExportOptions()" style="width: 100%; margin-top: 10px; padding: 15px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Close</button>
             </div>
         </div>
+
+        <!-- Assign Vehicle Modal -->
+        <div id="assign-vehicle-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+            <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
+                <h2 style="margin-bottom: 20px;">Assign Vehicle to Selected Fill-ups</h2>
+                
+                <div class="form-group">
+                    <label for="bulk-vehicle-select">Select Vehicle</label>
+                    <select id="bulk-vehicle-select" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;">
+                        <option value="">Select Vehicle</option>
+                    </select>
+                </div>
+                
+                <p style="margin-bottom: 20px; color: #666; font-size: 14px;">
+                    This will assign the selected vehicle to <strong><span id="modal-selected-count">0</span> fill-up(s)</strong>.
+                </p>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="applyBulkVehicleAssignment()" class="btn" style="flex: 1;">Apply</button>
+                    <button onclick="closeAssignVehicleModal()" style="flex: 1; padding: 15px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Vehicles Modal -->
+        <div id="manage-vehicles-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+            <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                <h2 style="margin-bottom: 20px;">Manage Vehicles</h2>
+                
+                <div id="vehicle-list" style="margin-bottom: 20px;"></div>
+                
+                <button onclick="closeManageVehicles()" style="width: 100%; padding: 15px; background: #667eea; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Close</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -416,6 +507,7 @@
         let spendingChart = null;
         let currentYearFilter = 'all';
         let currentVehicleFilter = 'all';
+        let selectedFillUps = new Set();
         let advancedFilters = {
             dateStart: null,
             dateEnd: null,
@@ -580,6 +672,83 @@
                     alert('Vehicle already exists!');
                 }
             }
+        }
+
+        // Show manage vehicles modal
+        function showManageVehicles() {
+            updateVehicleList();
+            document.getElementById('manage-vehicles-modal').style.display = 'flex';
+        }
+
+        // Close manage vehicles modal
+        function closeManageVehicles() {
+            document.getElementById('manage-vehicles-modal').style.display = 'none';
+        }
+
+        // Update the vehicle list in the modal
+        function updateVehicleList() {
+            const listDiv = document.getElementById('vehicle-list');
+            
+            if (vehicles.length === 0) {
+                listDiv.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No vehicles added yet.</p>';
+                return;
+            }
+            
+            listDiv.innerHTML = vehicles.map(vehicle => {
+                const fillUpsCount = fillUps.filter(f => f.vehicle === vehicle).length;
+                return `
+                    <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: #333; margin-bottom: 5px;">${vehicle}</div>
+                            <div style="font-size: 0.9em; color: #666;">${fillUpsCount} fill-up${fillUpsCount !== 1 ? 's' : ''}</div>
+                        </div>
+                        <button onclick="deleteVehicle('${vehicle.replace(/'/g, "\\'")}')"
+                                style="background: #ff4757; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">
+                            Delete
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Delete a vehicle
+        function deleteVehicle(vehicleName) {
+            const fillUpsWithVehicle = fillUps.filter(f => f.vehicle === vehicleName);
+            
+            if (fillUpsWithVehicle.length > 0) {
+                const message = `This vehicle is assigned to ${fillUpsWithVehicle.length} fill-up(s).\n\nWhat would you like to do?`;
+                const choice = confirm(message + '\n\nClick OK to remove the vehicle from those fill-ups and delete it.\nClick Cancel to keep the vehicle.');
+                
+                if (!choice) {
+                    return;
+                }
+                
+                // Clear vehicle from all affected fill-ups
+                fillUps.forEach(fill => {
+                    if (fill.vehicle === vehicleName) {
+                        fill.vehicle = '';
+                    }
+                });
+                saveData();
+            } else {
+                if (!confirm(`Are you sure you want to delete "${vehicleName}"?`)) {
+                    return;
+                }
+            }
+            
+            // Remove vehicle from the list
+            vehicles = vehicles.filter(v => v !== vehicleName);
+            saveVehicles();
+            
+            // Update all dropdowns and displays
+            populateVehicleFilter();
+            populateVehicleDropdown();
+            updateVehicleList();
+            updateStats();
+            updateHistory();
+            updateCharts();
+            
+            alert(`Vehicle "${vehicleName}" has been deleted.`);
         }
 
         // Handle vehicle filter change
@@ -900,34 +1069,139 @@
             }
 
             logDiv.innerHTML = filteredData.slice().reverse().map(fill => `
-                <div class="fill-item">
-                    <div class="fill-details">
-                        <div class="fill-date">${formatDateLocal(fill.date)}${fill.vehicle ? ' • ' + fill.vehicle : ''}</div>
-                        <div class="fill-info">
-                            ${fill.mpg !== null ? fill.mpg + ' MPG • ' : ''}${Number(fill.gallons).toFixed(3)} gal @ $${Number(fill.pricePerGallon).toFixed(3)}/gal • Odometer: ${fill.odometer.toFixed(1)}
+                <div class="fill-item ${selectedFillUps.has(fill.id) ? 'selected' : ''}" id="fill-${fill.id}">
+                    <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
+                        <input type="checkbox" 
+                               ${selectedFillUps.has(fill.id) ? 'checked' : ''} 
+                               onchange="toggleFillUpSelection(${fill.id})" 
+                               onclick="event.stopPropagation()">
+                        <div class="fill-details">
+                            <div class="fill-date">${formatDateLocal(fill.date)}${fill.vehicle ? ' • ' + fill.vehicle : ''}</div>
+                            <div class="fill-info">
+                                ${fill.mpg !== null ? fill.mpg + ' MPG • ' : ''}${Number(fill.gallons).toFixed(3)} gal @ $${Number(fill.pricePerGallon).toFixed(3)}/gal • Odometer: ${fill.odometer.toFixed(1)}
+                            </div>
+                            ${fill.miles !== null ? `<div class="fill-info" style="margin-top: 3px;">Miles driven: ${fill.miles.toFixed(1)}</div>` : ''}
+                            <div class="fill-info" style="font-weight: 600; color: #333; margin-top: 5px;">
+                                Total: $${fill.totalCost.toFixed(2)}
+                            </div>
                         </div>
-                        ${fill.miles !== null ? `<div class="fill-info" style="margin-top: 3px;">Miles driven: ${fill.miles.toFixed(1)}</div>` : ''}
-                        <div class="fill-info" style="font-weight: 600; color: #333; margin-top: 5px;">
-                            Total: $${fill.totalCost.toFixed(2)}
+                        <div style="display: flex; gap: 10px; margin-left: auto;">
+                            <button class="edit-btn" onclick="editFillUp(${fill.id})">Edit</button>
+                            <button class="delete-btn" onclick="deleteFillUp(${fill.id})">Delete</button>
                         </div>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="edit-btn" onclick="editFillUp(${fill.id})">Edit</button>
-                        <button class="delete-btn" onclick="deleteFillUp(${fill.id})">Delete</button>
                     </div>
                 </div>
             `).join('');
+            
+            updateSelectedCount();
         }
 
         function deleteFillUp(id) {
             if (confirm('Are you sure you want to delete this fill-up?')) {
                 fillUps = fillUps.filter(f => f.id !== id);
+                selectedFillUps.delete(id);
                 saveData();
                 populateYearFilter();
                 updateStats();
                 updateHistory();
                 updateCharts();
             }
+        }
+
+        // Toggle selection of a single fill-up
+        function toggleFillUpSelection(id) {
+            if (selectedFillUps.has(id)) {
+                selectedFillUps.delete(id);
+            } else {
+                selectedFillUps.add(id);
+            }
+            updateSelectedCount();
+            
+            // Update the visual state
+            const fillItem = document.getElementById(`fill-${id}`);
+            if (fillItem) {
+                fillItem.classList.toggle('selected', selectedFillUps.has(id));
+            }
+        }
+
+        // Toggle select all
+        function toggleSelectAll() {
+            const filteredData = getFilteredData();
+            
+            if (selectedFillUps.size === filteredData.length) {
+                // Deselect all
+                selectedFillUps.clear();
+            } else {
+                // Select all visible
+                selectedFillUps.clear();
+                filteredData.forEach(fill => selectedFillUps.add(fill.id));
+            }
+            
+            updateHistory(); // Refresh to show checkboxes
+        }
+
+        // Update selected count display
+        function updateSelectedCount() {
+            const count = selectedFillUps.size;
+            document.getElementById('selected-count').textContent = count;
+            document.getElementById('assign-vehicle-btn').disabled = count === 0;
+        }
+
+        // Show assign vehicle modal
+        function showAssignVehicleModal() {
+            if (selectedFillUps.size === 0) return;
+            
+            // Populate vehicle dropdown
+            const select = document.getElementById('bulk-vehicle-select');
+            select.innerHTML = '<option value="">Select Vehicle</option>';
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle;
+                option.textContent = vehicle;
+                select.appendChild(option);
+            });
+            
+            document.getElementById('modal-selected-count').textContent = selectedFillUps.size;
+            document.getElementById('assign-vehicle-modal').style.display = 'flex';
+        }
+
+        // Close assign vehicle modal
+        function closeAssignVehicleModal() {
+            document.getElementById('assign-vehicle-modal').style.display = 'none';
+        }
+
+        // Apply bulk vehicle assignment
+        function applyBulkVehicleAssignment() {
+            const vehicleName = document.getElementById('bulk-vehicle-select').value;
+            
+            if (!vehicleName) {
+                alert('Please select a vehicle');
+                return;
+            }
+            
+            if (selectedFillUps.size === 0) {
+                alert('No fill-ups selected');
+                return;
+            }
+            
+            // Update all selected fill-ups
+            let updatedCount = 0;
+            fillUps.forEach(fill => {
+                if (selectedFillUps.has(fill.id)) {
+                    fill.vehicle = vehicleName;
+                    updatedCount++;
+                }
+            });
+            
+            // Save and refresh
+            saveData();
+            selectedFillUps.clear();
+            updateStats();
+            updateHistory();
+            updateCharts();
+            
+            closeAssignVehicleModal();
+            alert(`Successfully assigned "${vehicleName}" to ${updatedCount} fill-up(s)!`);
         }
 
         function editFillUp(id) {
