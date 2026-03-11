@@ -1360,24 +1360,36 @@
 
         // Save data as JSON
         function saveToJSON() {
-            if (fillUps.length === 0) {
-                alert('No data to save!');
+            const filteredFillUps = getFilteredData();
+
+            if (filteredFillUps.length === 0) {
+                alert('No filtered data to save!');
                 return;
             }
 
+            const filteredVehicleNames = [...new Set(filteredFillUps.map(f => f.vehicle).filter(Boolean))];
+
             const payload = {
                 exportedAt: new Date().toISOString(),
-                vehicles,
-                fillUps
+                filters: {
+                    vehicle: currentVehicleFilter,
+                    year: currentYearFilter,
+                    dateStart: advancedFilters.dateStart,
+                    dateEnd: advancedFilters.dateEnd
+                },
+                vehicles: vehicles.filter(v => filteredVehicleNames.includes(v)),
+                fillUps: filteredFillUps
             };
 
             const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'fuel-tracker-' + new Date().toISOString().split('T')[0] + '.json';
+            a.download = 'fuel-tracker-filtered-' + new Date().toISOString().split('T')[0] + '.json';
             a.click();
             window.URL.revokeObjectURL(url);
+
+            alert(`Saved ${filteredFillUps.length} filtered entr${filteredFillUps.length === 1 ? 'y' : 'ies'} to JSON.`);
         }
 
         // Load data from JSON
