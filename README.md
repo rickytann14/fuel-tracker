@@ -2,6 +2,10 @@
 
 A single-file, browser-based fuel log for tracking fill-ups, MPG, fuel cost trends, and vehicle-specific history.
 
+## Live Site
+
+**[🌐 Open on GitHub Pages](https://rickytann14.github.io/fuel-tracker/)**
+
 ## What It Does
 
 - Track fill-ups with date, vehicle, odometer, gallons, price per gallon, and total cost.
