@@ -10,8 +10,8 @@ A single-file, browser-based fuel log for tracking fill-ups, MPG, fuel cost tren
 - Filter by vehicle, year, and date range.
 - View a simplified Stats area with separate Summary and Charts subtabs.
 - Bulk-assign a vehicle to selected history records.
-- Import/export CSV data.
-- Export report output to PDF or image.
+- Save/load data using JSON files.
+- Export PDF reports.
 
 ## Data Storage
 
@@ -61,7 +61,10 @@ Statistics are split into subtabs:
 - Supports multi-select with:
 	- `Select All`
 	- `Assign Vehicle` for selected records
-- Includes CSV import/export actions.
+- Includes three data actions:
+	- `Save` (export JSON)
+	- `Load` (import JSON)
+	- `Export to PDF`
 
 ## Filters
 
@@ -81,21 +84,23 @@ Statistics are split into subtabs:
 - Open `Manage Vehicles` to delete vehicles.
 - When deleting a vehicle that is assigned to records, you can remove it from those records as part of deletion.
 
-## Import/Export
+## Save, Load, and Export
 
-### CSV Export
+### Save (JSON)
 
-- Exports all fill-ups to CSV.
+- Exports current vehicles and fill-ups to a `.json` file.
 
-### CSV Import
+### Load (JSON)
 
-- Replaces current data after confirmation.
-- Attempts flexible column matching for common field names.
+- Loads data from a `.json` file.
+- Accepts either:
+	- an object with `fillUps` (and optional `vehicles`), or
+	- a raw fill-up array.
+- Replaces current in-app data after confirmation.
 
-### Other Exports
+### Export to PDF
 
-- PDF report export.
-- Stats screenshot export as PNG.
+- Exports a filtered summary report and recent fill-ups to PDF.
 
 ## Notes
 

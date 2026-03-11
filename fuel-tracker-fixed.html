@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Tracker</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -317,7 +315,6 @@
                 </select>
                 
                 <button onclick="showAdvancedFilters()" style="padding: 8px 15px; background: #4CAF50; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">🔍 Filters</button>
-                <button onclick="showExportOptions()" style="padding: 8px 15px; background: #2196F3; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">📤 Export</button>
                 <button onclick="clearAllData()" style="padding: 8px 15px; background: #ff4757; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">Clear All Data</button>
             </div>
         </div>
@@ -429,11 +426,12 @@
             <!-- History Tab -->
             <div id="history-tab" class="tab-content">
                 <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn" style="flex: 1; min-width: 150px;" onclick="exportToCSV()">📥 Export to CSV</button>
-                    <button class="btn" style="flex: 1; min-width: 150px; cursor: pointer; text-align: center;" onclick="document.getElementById('import-file').click()">
-                        📤 Import CSV
-                        <input type="file" id="import-file" accept=".csv" style="display: none;" onchange="importFile(event)">
+                    <button class="btn" style="flex: 1; min-width: 150px;" onclick="saveToJSON()">💾 Save</button>
+                    <button class="btn" style="flex: 1; min-width: 150px; cursor: pointer; text-align: center;" onclick="document.getElementById('load-file').click()">
+                        📂 Load
+                        <input type="file" id="load-file" accept=".json,application/json" style="display: none;" onchange="loadFromJSON(event)">
                     </button>
+                    <button class="btn" style="flex: 1; min-width: 150px;" onclick="exportToPDF()">📄 Export to PDF</button>
                 </div>
                 
                 <!-- Bulk Actions -->
@@ -467,19 +465,6 @@
                     <button onclick="clearAdvancedFilters()" style="flex: 1; padding: 15px; background: #95a5a6; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Clear Filters</button>
                     <button onclick="closeAdvancedFilters()" style="flex: 1; padding: 15px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Close</button>
                 </div>
-            </div>
-        </div>
-
-        <!-- Export Options Modal -->
-        <div id="export-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-            <div style="background: white; border-radius: 15px; padding: 30px; max-width: 500px; width: 90%;">
-                <h2 style="margin-bottom: 20px;">Export Options</h2>
-                
-                <button onclick="exportToCSV()" class="btn" style="margin-bottom: 10px;">📥 Export to CSV</button>
-                <button onclick="exportToPDF()" class="btn" style="margin-bottom: 10px;">📄 Export PDF Report</button>
-                <button onclick="exportSummaryImage()" class="btn" style="margin-bottom: 10px;">📊 Export Stats as Image</button>
-                
-                <button onclick="closeExportOptions()" style="width: 100%; margin-top: 10px; padding: 15px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Close</button>
             </div>
         </div>
 
@@ -821,15 +806,6 @@
             updateStats();
             updateHistory();
             updateCharts();
-        }
-
-        // Export Functions
-        function showExportOptions() {
-            document.getElementById('export-modal').style.display = 'flex';
-        }
-        
-        function closeExportOptions() {
-            document.getElementById('export-modal').style.display = 'none';
         }
 
         // Save data to localStorage
@@ -1382,42 +1358,30 @@
             });
         }
 
-        // Export to CSV
-        function exportToCSV() {
+        // Save data as JSON
+        function saveToJSON() {
             if (fillUps.length === 0) {
-                alert('No data to export!');
+                alert('No data to save!');
                 return;
             }
 
-            const headers = ['Date', 'Vehicle', 'Odometer', 'Price per Gallon', 'Gallons', 'Total Cost', 'Miles Driven', 'MPG', 'Skip MPG'];
-            const rows = fillUps.map(fill => [
-                fill.date,
-                fill.vehicle || '',
-                fill.odometer,
-                Number(fill.pricePerGallon).toFixed(3),
-                Number(fill.gallons).toFixed(3),
-                fill.totalCost.toFixed(2),
-                fill.miles !== null ? fill.miles.toFixed(2) : '',
-                fill.mpg !== null ? fill.mpg : '',
-                (fill.miles === null || fill.mpg === null) ? 1 : 0
-            ]);
+            const payload = {
+                exportedAt: new Date().toISOString(),
+                vehicles,
+                fillUps
+            };
 
-            let csvContent = headers.join(',') + '\n';
-            rows.forEach(row => {
-                csvContent += row.join(',') + '\n';
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'fuel-tracker-' + new Date().toISOString().split('T')[0] + '.csv';
+            a.download = 'fuel-tracker-' + new Date().toISOString().split('T')[0] + '.json';
             a.click();
             window.URL.revokeObjectURL(url);
         }
 
-        // Import CSV
-        function importFile(event) {
+        // Load data from JSON
+        function loadFromJSON(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -1425,123 +1389,71 @@
 
             reader.onload = function(e) {
                 try {
-                    let importedData = [];
+                    const parsed = JSON.parse(e.target.result);
+                    const importedFillUps = Array.isArray(parsed)
+                        ? parsed
+                        : (Array.isArray(parsed.fillUps) ? parsed.fillUps : []);
+                    const importedVehicles = Array.isArray(parsed.vehicles) ? parsed.vehicles : [];
 
-                    // Parse CSV
-                    const text = e.target.result;
-                    const lines = text.split('\n');
-                    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
-                    // Find column indices (flexible column naming)
-                    const dateIdx = headers.findIndex(h => h.includes('date') || h.includes('time'));
-                    const vehicleIdx = headers.findIndex(h => h.includes('vehicle'));
-                    const odometerIdx = headers.findIndex(h => h.includes('odometer') || h.includes('odo') || h.includes('mileage'));
-                    const priceIdx = headers.findIndex(h => h.includes('price') && (h.includes('gallon') || h.includes('per') || h.includes('unit')));
-                    const gallonsIdx = headers.findIndex(h => h.includes('gallon') || h.includes('volume') || h.includes('amount') || h.includes('quantity'));
-                    const totalIdx = headers.findIndex(h => (h.includes('total') || h.includes('cost') || h.includes('paid')) && !h.includes('per'));
-                    const milesIdx = headers.findIndex(h => h.includes('miles') && h.includes('driven'));
-                    const mpgIdx = headers.findIndex(h => h.includes('mpg') || h.includes('efficiency') || (h.includes('fuel') && h.includes('economy')));
-                    const skipMpgIdx = headers.findIndex(h => h.includes('skip') && h.includes('mpg'));
-
-                    for (let i = 1; i < lines.length; i++) {
-                        if (lines[i].trim() === '') continue;
-
-                        const values = lines[i].split(',').map(v => v.trim());
-
-                        // Parse date flexibly
-                        let dateValue = values[dateIdx];
-                        let formattedDate = '';
-
-                        if (dateValue) {
-                            // Strip time if present (anything after space)
-                            const datePart = dateValue.split(' ')[0];
-
-                            // Handle MM/DD/YYYY or M/D/YYYY
-                            const mdy = datePart.split('/');
-                            if (mdy.length === 3) {
-                                const month = mdy[0].padStart(2, '0');
-                                const day   = mdy[1].padStart(2, '0');
-                                const year  = mdy[2];
-                                formattedDate = `${year}-${month}-${day}`;
-                            }
-                            // Handle YYYY-MM-DD
-                            else if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-                                formattedDate = datePart;
-                            }
-                         }
-
-                        // Check Skip MPG flag
-                        const skipMpg = skipMpgIdx >= 0 && values[skipMpgIdx] === '1';
-                        
-                        // Get vehicle name
-                        const vehicleName = vehicleIdx >= 0 && values[vehicleIdx] ? values[vehicleIdx].trim() : '';
-                        
-                        // Add vehicle to list if not exists
-                        if (vehicleName && !vehicles.includes(vehicleName)) {
-                            vehicles.push(vehicleName);
-                        }
-
-                        const entry = {
-                            id: Date.now() + i,
-                            vehicle: vehicleName,
-                            date: formattedDate,
-                            odometer: odometerIdx >= 0 ? parseFloat(values[odometerIdx]) : 0,
-                            pricePerGallon: priceIdx >= 0 ? parseFloat(values[priceIdx]) : 0,
-                            gallons: gallonsIdx >= 0 ? parseFloat(values[gallonsIdx]) : 0,
-                            totalCost: totalIdx >= 0 ? parseFloat(values[totalIdx]) : 0,
-                            miles: milesIdx >= 0 && values[milesIdx] !== '' ? parseFloat(values[milesIdx]) : null,
-                            mpg: mpgIdx >= 0 && values[mpgIdx] !== '' ? parseFloat(values[mpgIdx]) : null,
-                            skipMpg: skipMpg
-                        };
-
-                        // Skip invalid entries
-                        if (entry.odometer > 0 && entry.gallons > 0) {
-                            importedData.push(entry);
-                        }
+                    if (importedFillUps.length === 0) {
+                        throw new Error('No fill-up entries found in JSON file.');
                     }
 
-                    console.log('CSV Import - Raw entries found:', importedData.length);
-                    console.log('Sample entry:', importedData[0]);
+                    const validFillUps = importedFillUps.filter(entry => {
+                        return entry
+                            && typeof entry.date === 'string'
+                            && Number(entry.odometer) > 0
+                            && Number(entry.gallons) > 0
+                            && Number(entry.pricePerGallon) > 0
+                            && Number(entry.totalCost) > 0;
+                    }).map((entry, idx) => ({
+                        id: entry.id || (Date.now() + idx),
+                        vehicle: entry.vehicle || '',
+                        date: entry.date,
+                        odometer: Number(entry.odometer),
+                        pricePerGallon: Number(entry.pricePerGallon),
+                        gallons: Number(entry.gallons),
+                        totalCost: Number(entry.totalCost),
+                        miles: entry.miles === null || entry.miles === undefined ? null : Number(entry.miles),
+                        mpg: entry.mpg === null || entry.mpg === undefined ? null : Number(entry.mpg),
+                        skipMpg: !!entry.skipMpg
+                    }));
 
-                    if (importedData.length > 0) {
-                        const confirmMsg = `Found ${importedData.length} valid entries. This will replace your current data. Continue?`;
-                        if (confirm(confirmMsg)) {
-                            fillUps = importedData;
-                            fillUps.sort((a, b) => new Date(a.date) - new Date(b.date));
-                            recomputeDerivedFields();
-                            saveData();
-                            saveVehicles();
-                            populateVehicleFilter();
-                            populateVehicleDropdown();
-
-                            // Force update everything
-                            updateStats();
-                            updateHistory();
-
-                            // Small delay to ensure DOM is ready for charts
-                            setTimeout(() => {
-                                updateCharts();
-                            }, 100);
-
-                            alert(`Data imported successfully! ${importedData.length} entries loaded.`);
-
-                            // Switch to stats tab to show results
-                            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                            document.querySelectorAll('.tab')[1].classList.add('active');
-                            document.getElementById('stats-tab').classList.add('active');
-
-                            // Update charts again after tab switch
-                            setTimeout(() => {
-                                updateCharts();
-                            }, 200);
-                        }
-                    } else {
-                        alert('No valid data found in file. Make sure your file has columns for Date, Odometer, Price per Gallon, Gallons, and Total Cost.');
+                    if (validFillUps.length === 0) {
+                        throw new Error('No valid fill-up entries found in JSON file.');
                     }
+
+                    const confirmMsg = `Found ${validFillUps.length} valid entries. This will replace your current data. Continue?`;
+                    if (!confirm(confirmMsg)) {
+                        return;
+                    }
+
+                    fillUps = validFillUps;
+                    fillUps.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                    const vehiclesFromData = [...new Set(validFillUps.map(f => f.vehicle).filter(Boolean))];
+                    vehicles = [...new Set([...importedVehicles, ...vehiclesFromData])];
+                    if (vehicles.length === 0) {
+                        vehicles = ['My Vehicle'];
+                    }
+
+                    recomputeDerivedFields();
+                    saveData();
+                    saveVehicles();
+                    populateYearFilter();
+                    populateVehicleFilter();
+                    populateVehicleDropdown();
+                    updateStats();
+                    updateHistory();
+
+                    setTimeout(() => {
+                        updateCharts();
+                    }, 100);
+
+                    alert(`Data loaded successfully! ${validFillUps.length} entries imported.`);
                 } catch (error) {
-                    alert('Error importing file: ' + error.message);
-                    console.error('Import error:', error);
+                    alert('Error loading JSON file: ' + error.message);
+                    console.error('Load error:', error);
                 }
 
                 // Reset file input
@@ -1626,49 +1538,9 @@
                 });
                 
                 doc.save('fuel-tracker-report-' + new Date().toISOString().split('T')[0] + '.pdf');
-                closeExportOptions();
             } catch (error) {
                 alert('Error creating PDF: ' + error.message);
                 console.error(error);
-            }
-        }
-
-        // Export Stats as Image
-        async function exportSummaryImage() {
-            const statsTab = document.getElementById('stats-tab');
-            
-            // Temporarily switch to stats tab if not already there
-            const wasHidden = !statsTab.classList.contains('active');
-            if (wasHidden) {
-                statsTab.classList.add('active');
-                updateCharts();
-                await new Promise(resolve => setTimeout(resolve, 500)); // Wait for charts to render
-            }
-            
-            try {
-                const canvas = await html2canvas(statsTab, {
-                    backgroundColor: '#ffffff',
-                    scale: 2
-                });
-                
-                // Convert to blob and download
-                canvas.toBlob(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'fuel-tracker-stats-' + new Date().toISOString().split('T')[0] + '.png';
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    
-                    closeExportOptions();
-                });
-            } catch (error) {
-                alert('Error creating image: ' + error.message);
-                console.error(error);
-            } finally {
-                if (wasHidden) {
-                    statsTab.classList.remove('active');
-                }
             }
         }
     </script>
