@@ -540,10 +540,26 @@
                     <option value="all">All Years</option>
                 </select>
             </div>
+
+            <div class="filter-group">
+                <label for="month-filter">Month</label>
+                <select id="month-filter">
+                    <option value="all">All Months</option>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+            </div>
             
-            <button onclick="showAdvancedFilters()" class="action-btn success">
-                🔍 Filters
-            </button>
             <button onclick="clearAllData()" class="action-btn danger">
                 🗑️ Clear All
             </button>
@@ -675,29 +691,6 @@
             </div>
         </div>
 
-        <!-- Advanced Filters Modal -->
-        <div id="filters-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
-            <div style="background: #1e293b; border-radius: 16px; padding: 30px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
-                <h2 style="margin-bottom: 20px; color: #e2e8f0; font-size: 1.5em;">Advanced Filters</h2>
-                
-                <div class="form-group">
-                    <label for="filter-date-start">Start Date</label>
-                    <input type="date" id="filter-date-start">
-                </div>
-                
-                <div class="form-group">
-                    <label for="filter-date-end">End Date</label>
-                    <input type="date" id="filter-date-end">
-                </div>
-                
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button onclick="applyAdvancedFilters()" class="btn">Apply Filters</button>
-                    <button onclick="clearAdvancedFilters()" class="action-btn secondary" style="flex: 1;">Clear</button>
-                    <button onclick="closeAdvancedFilters()" class="action-btn danger" style="flex: 1;">Close</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Assign Vehicle Modal -->
         <div id="assign-vehicle-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
             <div style="background: #1e293b; border-radius: 16px; padding: 30px; max-width: 500px; width: 90%; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
@@ -741,11 +734,8 @@
         let spendingChart = null;
         let currentYearFilter = 'all';
         let currentVehicleFilter = 'all';
+        let currentMonthFilter = 'all';
         let selectedFillUps = new Set();
-        let advancedFilters = {
-            dateStart: null,
-            dateEnd: null
-        };
 
         // Get filtered data based on all active filters
         function getFilteredData() {
@@ -763,13 +753,13 @@
                     return year === parseInt(currentYearFilter);
                 });
             }
-            
-            // Advanced filters
-            if (advancedFilters.dateStart) {
-                filtered = filtered.filter(fill => fill.date >= advancedFilters.dateStart);
-            }
-            if (advancedFilters.dateEnd) {
-                filtered = filtered.filter(fill => fill.date <= advancedFilters.dateEnd);
+
+            // Month filter
+            if (currentMonthFilter !== 'all') {
+                filtered = filtered.filter(fill => {
+                    const month = new Date(fill.date).getMonth() + 1;
+                    return month === parseInt(currentMonthFilter);
+                });
             }
 
             return filtered;
@@ -990,6 +980,16 @@
             });
         });
 
+        // Handle month filter change
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('month-filter').addEventListener('change', function(e) {
+                currentMonthFilter = e.target.value;
+                updateStats();
+                updateHistory();
+                updateCharts();
+            });
+        });
+
         // Clear all data with confirmation
         function clearAllData() {
             if (confirm('⚠️ WARNING: This will permanently delete ALL your fuel tracking data. This cannot be undone. Are you sure?')) {
@@ -997,7 +997,9 @@
                     fillUps = [];
                     saveData();
                     currentYearFilter = 'all';
+                    currentMonthFilter = 'all';
                     document.getElementById('year-filter').value = 'all';
+                    document.getElementById('month-filter').value = 'all';
                     populateYearFilter();
                     updateStats();
                     updateHistory();
@@ -1005,38 +1007,6 @@
                     alert('All data has been cleared.');
                 }
             }
-        }
-
-        // Advanced Filters Functions
-        function showAdvancedFilters() {
-            document.getElementById('filters-modal').style.display = 'flex';
-        }
-        
-        function closeAdvancedFilters() {
-            document.getElementById('filters-modal').style.display = 'none';
-        }
-        
-        function applyAdvancedFilters() {
-            advancedFilters.dateStart = document.getElementById('filter-date-start').value || null;
-            advancedFilters.dateEnd = document.getElementById('filter-date-end').value || null;
-            
-            updateStats();
-            updateHistory();
-            updateCharts();
-            closeAdvancedFilters();
-        }
-        
-        function clearAdvancedFilters() {
-            advancedFilters = {
-                dateStart: null,
-                dateEnd: null
-            };
-            document.getElementById('filter-date-start').value = '';
-            document.getElementById('filter-date-end').value = '';
-            
-            updateStats();
-            updateHistory();
-            updateCharts();
         }
 
         // Save data to localStorage
@@ -1605,8 +1575,7 @@
                 filters: {
                     vehicle: currentVehicleFilter,
                     year: currentYearFilter,
-                    dateStart: advancedFilters.dateStart,
-                    dateEnd: advancedFilters.dateEnd
+                    month: currentMonthFilter
                 },
                 vehicles: vehicles.filter(v => filteredVehicleNames.includes(v)),
                 fillUps: filteredFillUps
