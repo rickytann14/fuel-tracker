@@ -350,12 +350,20 @@
                         <div class="stat-label">Avg MPG</div>
                     </div>
                     <div class="stat-card">
+                        <div class="stat-value" id="last-mpg">--</div>
+                        <div class="stat-label">Last MPG</div>
+                    </div>
+                    <div class="stat-card">
                         <div class="stat-value" id="avg-spent">--</div>
                         <div class="stat-label">Avg Spent</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="avg-price-per-gallon">--</div>
                         <div class="stat-label">Avg $/Gallon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="last-price-paid">--</div>
+                        <div class="stat-label">Last Price Paid</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value" id="avg-cost-per-mile">--</div>
@@ -930,8 +938,10 @@
 
             if (filteredData.length === 0) {
                 document.getElementById('avg-mpg').textContent = '--';
+                document.getElementById('last-mpg').textContent = '--';
                 document.getElementById('avg-spent').textContent = '--';
                 document.getElementById('avg-price-per-gallon').textContent = '--';
+                document.getElementById('last-price-paid').textContent = '--';
                 document.getElementById('avg-cost-per-mile').textContent = '--';
                 document.getElementById('total-spent').textContent = '--';
                 document.getElementById('total-miles').textContent = '--';
@@ -939,6 +949,18 @@
             }
 
             const fillUpsWithMpg = filteredData.filter(f => f.mpg !== null);
+            const latestFillUp = filteredData.reduce((latest, current) => {
+                if (!latest) return current;
+                if (current.date > latest.date) return current;
+                if (current.date === latest.date && current.id > latest.id) return current;
+                return latest;
+            }, null);
+            const latestMpgFill = fillUpsWithMpg.reduce((latest, current) => {
+                if (!latest) return current;
+                if (current.date > latest.date) return current;
+                if (current.date === latest.date && current.id > latest.id) return current;
+                return latest;
+            }, null);
 
             const avgMpg = fillUpsWithMpg.length > 0
                 ? fillUpsWithMpg.reduce((sum, f) => sum + parseFloat(f.mpg), 0) / fillUpsWithMpg.length
@@ -953,8 +975,10 @@
                 : 0;
 
             document.getElementById('avg-mpg').textContent = fillUpsWithMpg.length > 0 ? avgMpg.toFixed(1) : '--';
+            document.getElementById('last-mpg').textContent = latestMpgFill ? Number(latestMpgFill.mpg).toFixed(1) : '--';
             document.getElementById('avg-spent').textContent = filteredData.length > 0 ? '$' + avgSpent.toFixed(2) : '--';
             document.getElementById('avg-price-per-gallon').textContent = filteredData.length > 0 ? '$' + avgPricePerGallon.toFixed(3) : '--';
+            document.getElementById('last-price-paid').textContent = latestFillUp ? '$' + Number(latestFillUp.pricePerGallon).toFixed(3) : '--';
             document.getElementById('avg-cost-per-mile').textContent = totalMiles > 0 ? costPerMile.toFixed(1) : '--';
             document.getElementById('total-spent').textContent = '$' + totalSpent.toFixed(0);
             document.getElementById('total-miles').textContent = totalMiles > 0 ? totalMiles.toFixed(0) : '--';
