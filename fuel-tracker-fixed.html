@@ -423,26 +423,6 @@
                     <input type="date" id="filter-date-end">
                 </div>
                 
-                <div class="form-group">
-                    <label for="filter-price-min">Min Price per Gallon ($)</label>
-                    <input type="number" id="filter-price-min" step="0.01" placeholder="0.00">
-                </div>
-                
-                <div class="form-group">
-                    <label for="filter-price-max">Max Price per Gallon ($)</label>
-                    <input type="number" id="filter-price-max" step="0.01" placeholder="10.00">
-                </div>
-                
-                <div class="form-group">
-                    <label for="filter-mpg-min">Min MPG</label>
-                    <input type="number" id="filter-mpg-min" step="0.1" placeholder="0">
-                </div>
-                
-                <div class="form-group">
-                    <label for="filter-mpg-max">Max MPG</label>
-                    <input type="number" id="filter-mpg-max" step="0.1" placeholder="50">
-                </div>
-                
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button onclick="applyAdvancedFilters()" class="btn">Apply Filters</button>
                     <button onclick="clearAdvancedFilters()" style="flex: 1; padding: 15px; background: #95a5a6; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;">Clear Filters</button>
@@ -510,11 +490,7 @@
         let selectedFillUps = new Set();
         let advancedFilters = {
             dateStart: null,
-            dateEnd: null,
-            priceMin: null,
-            priceMax: null,
-            mpgMin: null,
-            mpgMax: null
+            dateEnd: null
         };
 
         // Get filtered data based on all active filters
@@ -541,19 +517,7 @@
             if (advancedFilters.dateEnd) {
                 filtered = filtered.filter(fill => fill.date <= advancedFilters.dateEnd);
             }
-            if (advancedFilters.priceMin !== null) {
-                filtered = filtered.filter(fill => fill.pricePerGallon >= advancedFilters.priceMin);
-            }
-            if (advancedFilters.priceMax !== null) {
-                filtered = filtered.filter(fill => fill.pricePerGallon <= advancedFilters.priceMax);
-            }
-            if (advancedFilters.mpgMin !== null) {
-                filtered = filtered.filter(fill => fill.mpg !== null && fill.mpg >= advancedFilters.mpgMin);
-            }
-            if (advancedFilters.mpgMax !== null) {
-                filtered = filtered.filter(fill => fill.mpg !== null && fill.mpg <= advancedFilters.mpgMax);
-            }
-            
+
             return filtered;
         }
 
@@ -800,10 +764,6 @@
         function applyAdvancedFilters() {
             advancedFilters.dateStart = document.getElementById('filter-date-start').value || null;
             advancedFilters.dateEnd = document.getElementById('filter-date-end').value || null;
-            advancedFilters.priceMin = parseFloat(document.getElementById('filter-price-min').value) || null;
-            advancedFilters.priceMax = parseFloat(document.getElementById('filter-price-max').value) || null;
-            advancedFilters.mpgMin = parseFloat(document.getElementById('filter-mpg-min').value) || null;
-            advancedFilters.mpgMax = parseFloat(document.getElementById('filter-mpg-max').value) || null;
             
             updateStats();
             updateHistory();
@@ -814,18 +774,10 @@
         function clearAdvancedFilters() {
             advancedFilters = {
                 dateStart: null,
-                dateEnd: null,
-                priceMin: null,
-                priceMax: null,
-                mpgMin: null,
-                mpgMax: null
+                dateEnd: null
             };
             document.getElementById('filter-date-start').value = '';
             document.getElementById('filter-date-end').value = '';
-            document.getElementById('filter-price-min').value = '';
-            document.getElementById('filter-price-max').value = '';
-            document.getElementById('filter-mpg-min').value = '';
-            document.getElementById('filter-mpg-max').value = '';
             
             updateStats();
             updateHistory();
