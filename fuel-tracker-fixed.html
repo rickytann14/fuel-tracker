@@ -127,6 +127,36 @@
             margin-bottom: 25px;
         }
 
+        .stats-subtabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stats-subtab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #f0f0f0;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .stats-subtab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .stats-subtab-content {
+            display: none;
+        }
+
+        .stats-subtab-content.active {
+            display: block;
+        }
+
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -344,54 +374,55 @@
 
             <!-- Statistics Tab -->
             <div id="stats-tab" class="tab-content">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="avg-mpg">--</div>
-                        <div class="stat-label">Avg MPG</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="last-mpg">--</div>
-                        <div class="stat-label">Last MPG</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="avg-spent">--</div>
-                        <div class="stat-label">Avg Spent</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="avg-price-per-gallon">--</div>
-                        <div class="stat-label">Avg $/Gallon</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="last-price-paid">--</div>
-                        <div class="stat-label">Last Price Paid</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="avg-cost-per-mile">--</div>
-                        <div class="stat-label">¢/Mile</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-spent">--</div>
-                        <div class="stat-label">Total Spent</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="total-miles">--</div>
-                        <div class="stat-label">Total Miles</div>
+                <div class="stats-subtabs">
+                    <button class="stats-subtab active" onclick="switchStatsSubTab(event, 'summary')">Summary</button>
+                    <button class="stats-subtab" onclick="switchStatsSubTab(event, 'charts')">Charts</button>
+                </div>
+
+                <div id="stats-summary-panel" class="stats-subtab-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="avg-mpg">--</div>
+                            <div class="stat-label">Avg MPG</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="last-mpg">--</div>
+                            <div class="stat-label">Last MPG</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="avg-price-per-gallon">--</div>
+                            <div class="stat-label">Avg $/Gallon</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="last-price-paid">--</div>
+                            <div class="stat-label">Last Price Paid</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-spent">--</div>
+                            <div class="stat-label">Total Spent</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-miles">--</div>
+                            <div class="stat-label">Total Miles</div>
+                        </div>
                     </div>
                 </div>
 
-                <h3 style="margin-bottom: 15px;">MPG Over Time</h3>
-                <div class="chart-container">
-                    <canvas id="mpg-chart"></canvas>
-                </div>
+                <div id="stats-charts-panel" class="stats-subtab-content">
+                    <h3 style="margin-bottom: 15px;">MPG Over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="mpg-chart"></canvas>
+                    </div>
 
-                <h3 style="margin-bottom: 15px;">Monthly Spending Trends</h3>
-                <div class="chart-container">
-                    <canvas id="spending-chart"></canvas>
-                </div>
+                    <h3 style="margin-bottom: 15px;">Monthly Spending Trends</h3>
+                    <div class="chart-container">
+                        <canvas id="spending-chart"></canvas>
+                    </div>
 
-                <h3 style="margin-bottom: 15px;">Cost per Gallon Trend</h3>
-                <div class="chart-container">
-                    <canvas id="price-chart"></canvas>
+                    <h3 style="margin-bottom: 15px;">Cost per Gallon Trend</h3>
+                    <div class="chart-container">
+                        <canvas id="price-chart"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -933,16 +964,26 @@
             }
         }
 
+        function switchStatsSubTab(e, tab) {
+            document.querySelectorAll('.stats-subtab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.stats-subtab-content').forEach(c => c.classList.remove('active'));
+
+            e.target.classList.add('active');
+            document.getElementById(`stats-${tab}-panel`).classList.add('active');
+
+            if (tab === 'charts') {
+                updateCharts();
+            }
+        }
+
         function updateStats() {
             const filteredData = getFilteredData();
 
             if (filteredData.length === 0) {
                 document.getElementById('avg-mpg').textContent = '--';
                 document.getElementById('last-mpg').textContent = '--';
-                document.getElementById('avg-spent').textContent = '--';
                 document.getElementById('avg-price-per-gallon').textContent = '--';
                 document.getElementById('last-price-paid').textContent = '--';
-                document.getElementById('avg-cost-per-mile').textContent = '--';
                 document.getElementById('total-spent').textContent = '--';
                 document.getElementById('total-miles').textContent = '--';
                 return;
@@ -968,18 +1009,14 @@
 
             const totalSpent = filteredData.reduce((sum, f) => sum + f.totalCost, 0);
             const totalMiles = filteredData.filter(f => f.miles !== null).reduce((sum, f) => sum + f.miles, 0);
-            const costPerMile = totalMiles > 0 ? (totalSpent / totalMiles) * 100 : 0; // in cents
-            const avgSpent = filteredData.length > 0 ? totalSpent / filteredData.length : 0;
             const avgPricePerGallon = filteredData.length > 0
                 ? filteredData.reduce((sum, f) => sum + f.pricePerGallon, 0) / filteredData.length
                 : 0;
 
             document.getElementById('avg-mpg').textContent = fillUpsWithMpg.length > 0 ? avgMpg.toFixed(1) : '--';
             document.getElementById('last-mpg').textContent = latestMpgFill ? Number(latestMpgFill.mpg).toFixed(1) : '--';
-            document.getElementById('avg-spent').textContent = filteredData.length > 0 ? '$' + avgSpent.toFixed(2) : '--';
             document.getElementById('avg-price-per-gallon').textContent = filteredData.length > 0 ? '$' + avgPricePerGallon.toFixed(3) : '--';
             document.getElementById('last-price-paid').textContent = latestFillUp ? '$' + Number(latestFillUp.pricePerGallon).toFixed(3) : '--';
-            document.getElementById('avg-cost-per-mile').textContent = totalMiles > 0 ? costPerMile.toFixed(1) : '--';
             document.getElementById('total-spent').textContent = '$' + totalSpent.toFixed(0);
             document.getElementById('total-miles').textContent = totalMiles > 0 ? totalMiles.toFixed(0) : '--';
         }
