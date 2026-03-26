@@ -348,20 +348,38 @@
 
         .chart-picker {
             display: flex;
-            gap: 12px;
-            align-items: end;
+            gap: 8px;
             flex-wrap: wrap;
             margin-bottom: 20px;
-            padding: 16px;
+            padding: 12px;
             background: #0f172a;
             border: 1px solid #334155;
             border-radius: 12px;
         }
 
-        .chart-picker .form-group {
-            margin-bottom: 0;
+        .chart-picker-btn {
             flex: 1;
-            min-width: 220px;
+            min-width: 120px;
+            padding: 8px 12px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .chart-picker-btn:hover {
+            background: #273449;
+            color: #e2e8f0;
+        }
+
+        .chart-picker-btn.active {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
         }
 
         .chart-empty {
@@ -686,12 +704,7 @@
                 </div>
 
                 <div id="stats-charts-panel" class="stats-subtab-content">
-                    <div class="chart-picker">
-                        <div class="form-group">
-                            <label for="chart-selector">Chart</label>
-                            <select id="chart-selector"></select>
-                        </div>
-                    </div>
+                    <div class="chart-picker" id="chart-picker"></div>
 
                     <div class="chart-container">
                         <canvas id="selected-chart-canvas"></canvas>
@@ -969,11 +982,17 @@
         }
 
         function populateChartSelector() {
-            const metricSelect = document.getElementById('chart-selector');
-            metricSelect.innerHTML = Object.entries(chartDefinitions).map(([value, definition]) => {
-                return `<option value="${value}">${definition.label}</option>`;
+            const picker = document.getElementById('chart-picker');
+            picker.innerHTML = Object.entries(chartDefinitions).map(([value, definition]) => {
+                const active = value === selectedChartMetric ? ' active' : '';
+                return `<button class="chart-picker-btn${active}" onclick="selectChart('${value}')">${definition.label}</button>`;
             }).join('');
-            metricSelect.value = selectedChartMetric;
+        }
+
+        function selectChart(metric) {
+            selectedChartMetric = metric;
+            populateChartSelector();
+            updateCharts();
         }
 
         // Populate year filter dropdown
@@ -1207,12 +1226,6 @@
         updateHistory();
         updateCharts();
 
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('chart-selector').addEventListener('change', function(e) {
-                selectedChartMetric = e.target.value;
-                updateCharts();
-            });
-        });
 
         // Auto-calculate any of the three fields based on the other two
         let lastEdited = null;
