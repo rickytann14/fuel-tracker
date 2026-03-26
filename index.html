@@ -425,6 +425,18 @@
             color: #fff;
         }
 
+        .chart-smooth-btn {
+            margin-left: auto;
+            border-color: #475569;
+            color: #94a3b8;
+        }
+
+        .chart-smooth-btn.active {
+            background: #0f766e;
+            border-color: #0f766e;
+            color: #fff;
+        }
+
         .chart-empty {
             min-height: 220px;
             display: flex;
@@ -822,6 +834,29 @@
         let currentMonthFilter = 'all';
         let selectedFillUps = new Set();
         let selectedChartMetric = 'mpgOverTime';
+        let smoothChart = false;
+
+        function dynamicPointRadius(count) {
+            if (count > 50) return 0;
+            if (count > 25) return 3;
+            return 8;
+        }
+
+        function aggregateByMonth(entries, valueExtractor, aggregator) {
+            const groups = {};
+            entries.forEach(entry => {
+                const key = entry.date.substring(0, 7);
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(valueExtractor(entry));
+            });
+            return Object.keys(groups).sort().map(key => {
+                const [year, month] = key.split('-');
+                return {
+                    label: new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                    value: aggregator(groups[key])
+                };
+            });
+        }
 
         const chartDefinitions = {
             mpgOverTime: {
@@ -830,19 +865,27 @@
                 emptyMessage: 'No MPG data is available for the current filters.',
                 buildData(filteredData) {
                     const entries = filteredData.filter(fill => fill.mpg !== null);
-                    if (entries.length === 0) {
-                        return null;
-                    }
+                    if (entries.length === 0) return null;
 
+                    let labels, data;
+                    if (smoothChart && entries.length > 12) {
+                        const monthly = aggregateByMonth(entries, e => e.mpg, vals => vals.reduce((a, b) => a + b, 0) / vals.length);
+                        labels = monthly.map(m => m.label);
+                        data = monthly.map(m => +m.value.toFixed(2));
+                    } else {
+                        labels = entries.map(fill => formatDateLocal(fill.date));
+                        data = entries.map(fill => Number(fill.mpg));
+                    }
+                    const pr = dynamicPointRadius(data.length);
                     return {
-                        labels: entries.map(fill => formatDateLocal(fill.date)),
+                        labels,
                         datasets: [{
                             label: 'MPG',
-                            data: entries.map(fill => Number(fill.mpg)),
+                            data,
                             borderColor: '#60a5fa',
                             backgroundColor: 'rgba(96, 165, 250, 0.15)',
-                            pointRadius: 8,
-                            pointHoverRadius: 11,
+                            pointRadius: pr,
+                            pointHoverRadius: Math.max(pr + 3, 4),
                             pointHitRadius: 20,
                             tension: 0.35,
                             fill: true
@@ -895,19 +938,27 @@
                 type: 'line',
                 emptyMessage: 'No fuel price data is available for the current filters.',
                 buildData(filteredData) {
-                    if (filteredData.length === 0) {
-                        return null;
-                    }
+                    if (filteredData.length === 0) return null;
 
+                    let labels, data;
+                    if (smoothChart && filteredData.length > 12) {
+                        const monthly = aggregateByMonth(filteredData, e => e.pricePerGallon, vals => vals.reduce((a, b) => a + b, 0) / vals.length);
+                        labels = monthly.map(m => m.label);
+                        data = monthly.map(m => +m.value.toFixed(3));
+                    } else {
+                        labels = filteredData.map(fill => formatDateLocal(fill.date));
+                        data = filteredData.map(fill => Number(fill.pricePerGallon));
+                    }
+                    const pr = dynamicPointRadius(data.length);
                     return {
-                        labels: filteredData.map(fill => formatDateLocal(fill.date)),
+                        labels,
                         datasets: [{
                             label: 'Price per Gallon',
-                            data: filteredData.map(fill => Number(fill.pricePerGallon)),
+                            data,
                             borderColor: '#f59e0b',
                             backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                            pointRadius: 8,
-                            pointHoverRadius: 11,
+                            pointRadius: pr,
+                            pointHoverRadius: Math.max(pr + 3, 4),
                             pointHitRadius: 20,
                             tension: 0.35,
                             fill: true
@@ -923,15 +974,22 @@
                 type: 'bar',
                 emptyMessage: 'No gallon data is available for the current filters.',
                 buildData(filteredData) {
-                    if (filteredData.length === 0) {
-                        return null;
-                    }
+                    if (filteredData.length === 0) return null;
 
+                    let labels, data;
+                    if (smoothChart && filteredData.length > 12) {
+                        const monthly = aggregateByMonth(filteredData, e => e.gallons, vals => vals.reduce((a, b) => a + b, 0));
+                        labels = monthly.map(m => m.label);
+                        data = monthly.map(m => +m.value.toFixed(2));
+                    } else {
+                        labels = filteredData.map(fill => formatDateLocal(fill.date));
+                        data = filteredData.map(fill => Number(fill.gallons));
+                    }
                     return {
-                        labels: filteredData.map(fill => formatDateLocal(fill.date)),
+                        labels,
                         datasets: [{
-                            label: 'Gallons',
-                            data: filteredData.map(fill => Number(fill.gallons)),
+                            label: smoothChart ? 'Gallons (Monthly)' : 'Gallons',
+                            data,
                             borderColor: '#a78bfa',
                             backgroundColor: 'rgba(167, 139, 250, 0.65)',
                             tension: 0.35,
@@ -948,15 +1006,22 @@
                 type: 'bar',
                 emptyMessage: 'No total cost data is available for the current filters.',
                 buildData(filteredData) {
-                    if (filteredData.length === 0) {
-                        return null;
-                    }
+                    if (filteredData.length === 0) return null;
 
+                    let labels, data;
+                    if (smoothChart && filteredData.length > 12) {
+                        const monthly = aggregateByMonth(filteredData, e => e.totalCost, vals => vals.reduce((a, b) => a + b, 0));
+                        labels = monthly.map(m => m.label);
+                        data = monthly.map(m => +m.value.toFixed(2));
+                    } else {
+                        labels = filteredData.map(fill => formatDateLocal(fill.date));
+                        data = filteredData.map(fill => Number(fill.totalCost));
+                    }
                     return {
-                        labels: filteredData.map(fill => formatDateLocal(fill.date)),
+                        labels,
                         datasets: [{
-                            label: 'Total Cost',
-                            data: filteredData.map(fill => Number(fill.totalCost)),
+                            label: smoothChart ? 'Total Cost (Monthly)' : 'Total Cost',
+                            data,
                             borderColor: '#f87171',
                             backgroundColor: 'rgba(248, 113, 113, 0.65)',
                             tension: 0.35,
@@ -1026,10 +1091,18 @@
 
         function populateChartSelector() {
             const picker = document.getElementById('chart-picker');
-            picker.innerHTML = Object.entries(chartDefinitions).map(([value, definition]) => {
+            const chartBtns = Object.entries(chartDefinitions).map(([value, definition]) => {
                 const active = value === selectedChartMetric ? ' active' : '';
                 return `<button class="chart-picker-btn${active}" onclick="selectChart('${value}')">${definition.label}</button>`;
             }).join('');
+            const smoothActive = smoothChart ? ' active' : '';
+            picker.innerHTML = chartBtns + `<button class="chart-picker-btn chart-smooth-btn${smoothActive}" onclick="toggleSmooth()">∿ Smooth</button>`;
+        }
+
+        function toggleSmooth() {
+            smoothChart = !smoothChart;
+            populateChartSelector();
+            updateCharts();
         }
 
         function selectChart(metric) {
