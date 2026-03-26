@@ -2,6 +2,8 @@
 
 A single-file, browser-based fuel log for tracking fill-ups, MPG, fuel cost trends, and vehicle-specific history.
 
+> Mostly vibe coded with [Claude Code](https://claude.ai/code). 🤖⛽
+
 ## Live Site
 
 **[🌐 Open on GitHub Pages](https://rickytann14.github.io/fuel-tracker/)**
@@ -11,8 +13,8 @@ A single-file, browser-based fuel log for tracking fill-ups, MPG, fuel cost tren
 - Track fill-ups with date, vehicle, odometer, gallons, price per gallon, and total cost.
 - Auto-calculate one of `price/gallons/total` when the other two are entered.
 - Compute MPG when possible, with an option to skip MPG for first/missed fill-ups.
-- Filter by vehicle, year, and date range.
-- View a simplified Stats area with separate Summary and Charts subtabs.
+- Filter by vehicle, year, and month — tap to apply instantly, no "Done" button needed.
+- View a Stats area with Summary cards and an interactive Charts tab.
 - Bulk-assign a vehicle to selected history records.
 - Save/load data using JSON files.
 - Export PDF reports.
@@ -24,10 +26,10 @@ A single-file, browser-based fuel log for tracking fill-ups, MPG, fuel cost tren
 
 ## How To Use
 
-1. Open `fuel-tracker-fixed.html` in a browser.
+1. Open `index.html` in a browser (or visit the live site).
 2. Add a vehicle (or select an existing one).
 3. Enter fill-up details and submit.
-4. Use header filters to view specific vehicles/years/date ranges.
+4. Use the header filters to view specific vehicles, years, or months.
 
 ## Tabs
 
@@ -49,14 +51,22 @@ Statistics are split into subtabs:
 - `Summary`
 	- Avg MPG
 	- Last MPG
+	- Best MPG / Worst MPG
 	- Avg $/Gallon
 	- Last Price Paid
 	- Total Spent
 	- Total Miles
+	- Cost per Mile
 - `Charts`
 	- MPG Over Time
-	- Monthly Spending Trends
-	- Cost per Gallon Trend
+	- Monthly Spending
+	- Cost per Gallon
+	- Gallons per Fill-up
+	- Total Cost per Fill-up
+	- Cost per Mile
+	- Miles per Fill-up
+	- Year-over-Year MPG (multi-line, one line per year)
+	- **Smooth toggle** — collapses per-fill-up charts into monthly averages/sums
 
 ### History
 
@@ -72,21 +82,17 @@ Statistics are split into subtabs:
 
 ## Filters
 
-### Header Filters
+Tap any filter value to apply it instantly — no confirmation needed.
 
 - Vehicle filter
-- Year filter
-
-### Advanced Filters
-
-- Start Date
-- End Date
+- Year filter (defaults to most recent year)
+- Month filter
 
 ## Vehicle Management
 
 - Add vehicles from the Add Fill-up tab.
 - Open `Manage Vehicles` to delete vehicles.
-- When deleting a vehicle that is assigned to records, you can remove it from those records as part of deletion.
+- When deleting a vehicle assigned to records, you can remove it from those records as part of deletion.
 
 ## Save, Load, and Export
 
