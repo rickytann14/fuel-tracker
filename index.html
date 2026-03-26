@@ -73,7 +73,14 @@
             font-weight: 500;
         }
 
-        .filter-group select {
+        .custom-select {
+            position: relative;
+        }
+
+        .custom-select-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             padding: 8px 12px;
             border-radius: 8px;
             border: 1px solid #334155;
@@ -82,17 +89,53 @@
             font-size: 0.95em;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            white-space: nowrap;
+            transition: border-color 0.2s;
         }
 
-        .filter-group select:hover {
+        .custom-select-btn:hover {
             border-color: #60a5fa;
         }
 
-        .filter-group select:focus {
-            outline: none;
-            border-color: #60a5fa;
-            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        .custom-select-arrow {
+            color: #94a3b8;
+            font-size: 0.75em;
+        }
+
+        .custom-select-panel {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 100%;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            z-index: 200;
+            max-height: 260px;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        .custom-select-panel.open {
+            display: block;
+        }
+
+        .custom-select-option {
+            padding: 10px 14px;
+            color: #e2e8f0;
+            font-size: 0.9em;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .custom-select-option:hover {
+            background: #273449;
+        }
+
+        .custom-select-option.selected {
+            color: #60a5fa;
+            font-weight: 600;
         }
 
         .action-btn {
@@ -580,38 +623,38 @@
 
         <div class="filter-bar">
             <div class="filter-group">
-                <label for="vehicle-filter">Vehicle</label>
-                <select id="vehicle-filter">
-                    <option value="all">All Vehicles</option>
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <label for="year-filter">Year</label>
-                <select id="year-filter">
-                    <option value="all">All Years</option>
-                </select>
+                <label>Vehicle</label>
+                <div class="custom-select" id="vehicle-filter-wrap">
+                    <button class="custom-select-btn" onclick="toggleFilterDropdown('vehicle-filter-wrap')">
+                        <span id="vehicle-filter-label">All Vehicles</span>
+                        <span class="custom-select-arrow">▾</span>
+                    </button>
+                    <div class="custom-select-panel" id="vehicle-filter-panel"></div>
+                </div>
             </div>
 
             <div class="filter-group">
-                <label for="month-filter">Month</label>
-                <select id="month-filter">
-                    <option value="all">All Months</option>
-                    <option value="1">January</option>
-                    <option value="2">February</option>
-                    <option value="3">March</option>
-                    <option value="4">April</option>
-                    <option value="5">May</option>
-                    <option value="6">June</option>
-                    <option value="7">July</option>
-                    <option value="8">August</option>
-                    <option value="9">September</option>
-                    <option value="10">October</option>
-                    <option value="11">November</option>
-                    <option value="12">December</option>
-                </select>
+                <label>Year</label>
+                <div class="custom-select" id="year-filter-wrap">
+                    <button class="custom-select-btn" onclick="toggleFilterDropdown('year-filter-wrap')">
+                        <span id="year-filter-label">All Years</span>
+                        <span class="custom-select-arrow">▾</span>
+                    </button>
+                    <div class="custom-select-panel" id="year-filter-panel"></div>
+                </div>
             </div>
-            
+
+            <div class="filter-group">
+                <label>Month</label>
+                <div class="custom-select" id="month-filter-wrap">
+                    <button class="custom-select-btn" onclick="toggleFilterDropdown('month-filter-wrap')">
+                        <span id="month-filter-label">All Months</span>
+                        <span class="custom-select-arrow">▾</span>
+                    </button>
+                    <div class="custom-select-panel" id="month-filter-panel"></div>
+                </div>
+            </div>
+
             <button onclick="clearAllData()" class="action-btn danger">
                 🗑️ Clear All
             </button>
@@ -995,58 +1038,76 @@
             updateCharts();
         }
 
-        // Populate year filter dropdown
-        function populateYearFilter() {
-            const yearFilter = document.getElementById('year-filter');
-            const years = new Set();
-
-            fillUps.forEach(fill => {
-                const year = new Date(fill.date).getFullYear();
-                years.add(year);
-            });
-
-            const sortedYears = Array.from(years).sort((a, b) => b - a);
-
-            // Keep "All Years" option and add years
-            const currentValue = yearFilter.value;
-            yearFilter.innerHTML = '<option value="all">All Years</option>';
-            sortedYears.forEach(year => {
-                const option = document.createElement('option');
-                option.value = year;
-                option.textContent = year;
-                yearFilter.appendChild(option);
-            });
-
-            // Default to latest year when possible, otherwise restore selection
-            const hasCurrent = currentValue && Array.from(yearFilter.options).some(opt => opt.value === currentValue);
-            if (sortedYears.length > 0 && (!hasCurrent || currentValue === 'all')) {
-                yearFilter.value = String(sortedYears[0]);
-                currentYearFilter = String(sortedYears[0]);
-            } else if (hasCurrent) {
-                yearFilter.value = currentValue;
-                currentYearFilter = currentValue;
-            } else {
-                yearFilter.value = 'all';
-                currentYearFilter = 'all';
-            }
+        function renderFilterPanel(panelId, options, currentValue) {
+            const panel = document.getElementById(panelId);
+            panel.innerHTML = options.map(({ value, label }) =>
+                `<div class="custom-select-option${value === currentValue ? ' selected' : ''}" onclick="applyFilter('${panelId}','${value}','${label}')">${label}</div>`
+            ).join('');
         }
 
-        // Populate vehicle filter dropdown
-        function populateVehicleFilter() {
-            const vehicleFilter = document.getElementById('vehicle-filter');
-            const currentValue = vehicleFilter.value;
-            
-            vehicleFilter.innerHTML = '<option value="all">All Vehicles</option>';
-            vehicles.forEach(vehicle => {
-                const option = document.createElement('option');
-                option.value = vehicle;
-                option.textContent = vehicle;
-                vehicleFilter.appendChild(option);
-            });
-            
-            if (currentValue && Array.from(vehicleFilter.options).some(opt => opt.value === currentValue)) {
-                vehicleFilter.value = currentValue;
+        function applyFilter(panelId, value, label) {
+            document.querySelectorAll('.custom-select-panel.open').forEach(p => p.classList.remove('open'));
+            if (panelId === 'vehicle-filter-panel') {
+                currentVehicleFilter = value;
+                document.getElementById('vehicle-filter-label').textContent = label;
+                renderFilterPanel('vehicle-filter-panel', getVehicleOptions(), value);
+            } else if (panelId === 'year-filter-panel') {
+                currentYearFilter = value;
+                document.getElementById('year-filter-label').textContent = label;
+                renderFilterPanel('year-filter-panel', getYearOptions(), value);
+            } else if (panelId === 'month-filter-panel') {
+                currentMonthFilter = value;
+                document.getElementById('month-filter-label').textContent = label;
+                renderFilterPanel('month-filter-panel', getMonthOptions(), value);
             }
+            updateStats();
+            updateHistory();
+            updateCharts();
+        }
+
+        function toggleFilterDropdown(wrapId) {
+            const panel = document.querySelector('#' + wrapId + ' .custom-select-panel');
+            const isOpen = panel.classList.contains('open');
+            document.querySelectorAll('.custom-select-panel.open').forEach(p => p.classList.remove('open'));
+            if (!isOpen) panel.classList.add('open');
+        }
+
+        function getVehicleOptions() {
+            return [{ value: 'all', label: 'All Vehicles' }].concat(vehicles.map(v => ({ value: v, label: v })));
+        }
+
+        function getYearOptions() {
+            const years = new Set();
+            fillUps.forEach(fill => years.add(new Date(fill.date).getFullYear()));
+            const sorted = Array.from(years).sort((a, b) => b - a);
+            return [{ value: 'all', label: 'All Years' }].concat(sorted.map(y => ({ value: String(y), label: String(y) })));
+        }
+
+        function getMonthOptions() {
+            const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            return [{ value: 'all', label: 'All Months' }].concat(names.map((n, i) => ({ value: String(i + 1), label: n })));
+        }
+
+        // Populate year filter
+        function populateYearFilter() {
+            const options = getYearOptions();
+            // Default to latest year if current filter is 'all' and years exist
+            if (options.length > 1 && currentYearFilter === 'all') {
+                currentYearFilter = options[1].value;
+            }
+            const selected = options.find(o => o.value === currentYearFilter) || options[0];
+            currentYearFilter = selected.value;
+            document.getElementById('year-filter-label').textContent = selected.label;
+            renderFilterPanel('year-filter-panel', options, selected.value);
+        }
+
+        // Populate vehicle filter
+        function populateVehicleFilter() {
+            const options = getVehicleOptions();
+            const selected = options.find(o => o.value === currentVehicleFilter) || options[0];
+            currentVehicleFilter = selected.value;
+            document.getElementById('vehicle-filter-label').textContent = selected.label;
+            renderFilterPanel('vehicle-filter-panel', options, selected.value);
         }
         
         // Populate vehicle dropdown in form
@@ -1164,35 +1225,6 @@
             alert(`Vehicle "${vehicleName}" has been deleted.`);
         }
 
-        // Handle vehicle filter change
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('vehicle-filter').addEventListener('change', function(e) {
-                currentVehicleFilter = e.target.value;
-                updateStats();
-                updateHistory();
-                updateCharts();
-            });
-        });
-
-        // Handle year filter change
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('year-filter').addEventListener('change', function(e) {
-                currentYearFilter = e.target.value;
-                updateStats();
-                updateHistory();
-                updateCharts();
-            });
-        });
-
-        // Handle month filter change
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('month-filter').addEventListener('change', function(e) {
-                currentMonthFilter = e.target.value;
-                updateStats();
-                updateHistory();
-                updateCharts();
-            });
-        });
 
         // Clear all data with confirmation
         function clearAllData() {
@@ -1202,9 +1234,9 @@
                     saveData();
                     currentYearFilter = 'all';
                     currentMonthFilter = 'all';
-                    document.getElementById('year-filter').value = 'all';
-                    document.getElementById('month-filter').value = 'all';
                     populateYearFilter();
+                    renderFilterPanel('month-filter-panel', getMonthOptions(), 'all');
+                    document.getElementById('month-filter-label').textContent = 'All Months';
                     updateStats();
                     updateHistory();
                     updateCharts();
@@ -1221,10 +1253,17 @@
         // Initialize
         loadData();
         populateChartSelector();
+        renderFilterPanel('month-filter-panel', getMonthOptions(), 'all');
         document.getElementById('date').value = new Date().toLocaleDateString('en-CA');
         updateStats();
         updateHistory();
         updateCharts();
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.custom-select')) {
+                document.querySelectorAll('.custom-select-panel.open').forEach(p => p.classList.remove('open'));
+            }
+        });
 
 
         // Auto-calculate any of the three fields based on the other two
