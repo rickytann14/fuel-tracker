@@ -1202,7 +1202,7 @@
         // Initialize
         loadData();
         populateChartSelector();
-        document.getElementById('date').valueAsDate = new Date();
+        document.getElementById('date').value = new Date().toLocaleDateString('en-CA');
         updateStats();
         updateHistory();
         updateCharts();
@@ -1312,7 +1312,7 @@
             saveData();
 
             this.reset();
-            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('date').value = new Date().toLocaleDateString('en-CA');
 
             populateYearFilter();
             updateStats();
