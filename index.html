@@ -359,16 +359,17 @@
         }
 
         .stat-value {
-            font-size: 2.2em;
+            font-size: clamp(1.2em, 4vw, 2.2em);
             font-weight: 700;
             line-height: 1.15;
-            display: inline-block;
+            display: block;
             padding-bottom: 0.08em;
             margin-bottom: 8px;
             background: linear-gradient(135deg, #60a5fa, #a78bfa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            word-break: break-all;
         }
 
         .stat-label {
@@ -790,14 +791,14 @@
                     </button>
                     <button class="btn" style="flex: 1; min-width: 150px;" onclick="exportToPDF()">📄 Export to PDF</button>
                 </div>
-                
+
                 <!-- Bulk Actions -->
                 <div class="bulk-actions">
                     <button class="select-all-btn" onclick="toggleSelectAll()">Select All</button>
                     <button class="assign-vehicle-btn" id="assign-vehicle-btn" onclick="showAssignVehicleModal()" disabled>Assign Vehicle (<span id="selected-count">0</span>)</button>
                     <span style="color: #666; font-size: 14px;">Select fill-ups to assign a vehicle</span>
                 </div>
-                
+
                 <div id="fill-log" class="fill-log"></div>
             </div>
         </div>
@@ -806,18 +807,18 @@
         <div id="assign-vehicle-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
             <div style="background: #1e293b; border-radius: 16px; padding: 30px; max-width: 500px; width: 90%; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
                 <h2 style="margin-bottom: 20px; color: #e2e8f0; font-size: 1.5em;">Assign Vehicle to Selected Fill-ups</h2>
-                
+
                 <div class="form-group">
                     <label for="bulk-vehicle-select">Select Vehicle</label>
                     <select id="bulk-vehicle-select">
                         <option value="">Select Vehicle</option>
                     </select>
                 </div>
-                
+
                 <p style="margin-bottom: 20px; color: #94a3b8; font-size: 14px;">
                     This will assign the selected vehicle to <strong style="color: #60a5fa;"><span id="modal-selected-count">0</span> fill-up(s)</strong>.
                 </p>
-                
+
                 <div style="display: flex; gap: 10px;">
                     <button onclick="applyBulkVehicleAssignment()" class="btn" style="flex: 1;">Apply</button>
                     <button onclick="closeAssignVehicleModal()" class="action-btn danger" style="flex: 1;">Cancel</button>
@@ -829,9 +830,9 @@
         <div id="manage-vehicles-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
             <div style="background: #1e293b; border-radius: 16px; padding: 30px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
                 <h2 style="margin-bottom: 20px; color: #e2e8f0; font-size: 1.5em;">Manage Vehicles</h2>
-                
+
                 <div id="vehicle-list" style="margin-bottom: 20px;"></div>
-                
+
                 <button onclick="closeManageVehicles()" class="btn">Close</button>
             </div>
         </div>
@@ -1171,12 +1172,12 @@
         // Get filtered data based on all active filters
         function getFilteredData() {
             let filtered = fillUps;
-            
+
             // Vehicle filter
             if (currentVehicleFilter !== 'all') {
                 filtered = filtered.filter(fill => fill.vehicle === currentVehicleFilter);
             }
-            
+
             // Year filter
             if (currentYearFilter !== 'all') {
                 filtered = filtered.filter(fill => {
@@ -1202,7 +1203,7 @@
             if (saved) {
                 fillUps = JSON.parse(saved);
             }
-            
+
             const savedVehicles = localStorage.getItem('fuelTrackerVehicles');
             if (savedVehicles) {
                 vehicles = JSON.parse(savedVehicles);
@@ -1211,12 +1212,12 @@
                 vehicles = ['My Vehicle'];
                 saveVehicles();
             }
-            
+
             populateYearFilter();
             populateVehicleFilter();
             populateVehicleDropdown();
         }
-        
+
         // Save vehicles to localStorage
         function saveVehicles() {
             localStorage.setItem('fuelTrackerVehicles', JSON.stringify(vehicles));
@@ -1315,12 +1316,12 @@
             document.getElementById('vehicle-filter-label').textContent = selected.label;
             renderFilterPanel('vehicle-filter-panel', options, selected.value);
         }
-        
+
         // Populate vehicle dropdown in form
         function populateVehicleDropdown() {
             const vehicleDropdown = document.getElementById('vehicle');
             const currentValue = vehicleDropdown.value;
-            
+
             vehicleDropdown.innerHTML = '<option value="">Select Vehicle</option>';
             vehicles.forEach(vehicle => {
                 const option = document.createElement('option');
@@ -1328,14 +1329,14 @@
                 option.textContent = vehicle;
                 vehicleDropdown.appendChild(option);
             });
-            
+
             if (currentValue && vehicles.includes(currentValue)) {
                 vehicleDropdown.value = currentValue;
             } else if (vehicles.length === 1) {
                 vehicleDropdown.value = vehicles[0];
             }
         }
-        
+
         // Add new vehicle
         function addNewVehicle() {
             const vehicleName = prompt('Enter vehicle name (e.g., "2022 Toyota Tacoma"):');
@@ -1367,12 +1368,12 @@
         // Update the vehicle list in the modal
         function updateVehicleList() {
             const listDiv = document.getElementById('vehicle-list');
-            
+
             if (vehicles.length === 0) {
                 listDiv.innerHTML = '<p style="color: #64748b; text-align: center; padding: 20px;">No vehicles added yet.</p>';
                 return;
             }
-            
+
             listDiv.innerHTML = vehicles.map(vehicle => {
                 const fillUpsCount = fillUps.filter(f => f.vehicle === vehicle).length;
                 return `
@@ -1394,15 +1395,15 @@
         // Delete a vehicle
         function deleteVehicle(vehicleName) {
             const fillUpsWithVehicle = fillUps.filter(f => f.vehicle === vehicleName);
-            
+
             if (fillUpsWithVehicle.length > 0) {
                 const message = `This vehicle is assigned to ${fillUpsWithVehicle.length} fill-up(s).\n\nWhat would you like to do?`;
                 const choice = confirm(message + '\n\nClick OK to remove the vehicle from those fill-ups and delete it.\nClick Cancel to keep the vehicle.');
-                
+
                 if (!choice) {
                     return;
                 }
-                
+
                 // Clear vehicle from all affected fill-ups
                 fillUps.forEach(fill => {
                     if (fill.vehicle === vehicleName) {
@@ -1415,11 +1416,11 @@
                     return;
                 }
             }
-            
+
             // Remove vehicle from the list
             vehicles = vehicles.filter(v => v !== vehicleName);
             saveVehicles();
-            
+
             // Update all dropdowns and displays
             populateVehicleFilter();
             populateVehicleDropdown();
@@ -1427,7 +1428,7 @@
             updateStats();
             updateHistory();
             updateCharts();
-            
+
             alert(`Vehicle "${vehicleName}" has been deleted.`);
         }
 
@@ -1654,7 +1655,7 @@
             document.getElementById('last-price-paid').textContent = latestFillUp ? '$' + Number(latestFillUp.pricePerGallon).toFixed(3) : '--';
             document.getElementById('total-spent').textContent = '$' + totalSpent.toFixed(0);
             document.getElementById('total-miles').textContent = totalMiles > 0 ? totalMiles.toFixed(0) : '--';
-            document.getElementById('cost-per-mile').textContent = totalMiles > 0 ? '$' + (totalSpent / totalMiles).toFixed(3) + '/mi' : '--';
+            document.getElementById('cost-per-mile').textContent = totalMiles > 0 ? '$' + (totalSpent / totalMiles).toFixed(3) : '--';
             document.getElementById('best-mpg').textContent = bestMpg !== null ? bestMpg.toFixed(1) : '--';
             document.getElementById('worst-mpg').textContent = worstMpg !== null ? worstMpg.toFixed(1) : '--';
         }
@@ -1684,11 +1685,11 @@
 
                 // For subsequent fill-ups, only recompute if miles/mpg are null or undefined
                 const lastFillUp = fillUps[index - 1];
-                
+
                 if ((f.miles === null || f.miles === undefined) && f.odometer > lastFillUp.odometer) {
                     f.miles = f.odometer - lastFillUp.odometer;
                 }
-                
+
                 if ((f.mpg === null || f.mpg === undefined) && f.miles !== null && f.gallons > 0) {
                     f.mpg = +(f.miles / f.gallons).toFixed(2);
                 }
@@ -1722,9 +1723,9 @@
             logDiv.innerHTML = filteredData.slice().reverse().map(fill => `
                 <div class="fill-item ${selectedFillUps.has(fill.id) ? 'selected' : ''}" id="fill-${fill.id}">
                     <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
-                        <input type="checkbox" 
-                               ${selectedFillUps.has(fill.id) ? 'checked' : ''} 
-                               onchange="toggleFillUpSelection(${fill.id})" 
+                        <input type="checkbox"
+                               ${selectedFillUps.has(fill.id) ? 'checked' : ''}
+                               onchange="toggleFillUpSelection(${fill.id})"
                                onclick="event.stopPropagation()">
                         <div class="fill-details">
                             <div class="fill-date">${formatDateLocal(fill.date)}${fill.vehicle ? ' • ' + fill.vehicle : ''}</div>
@@ -1743,7 +1744,7 @@
                     </div>
                 </div>
             `).join('');
-            
+
             updateSelectedCount();
         }
 
@@ -1767,7 +1768,7 @@
                 selectedFillUps.add(id);
             }
             updateSelectedCount();
-            
+
             // Update the visual state
             const fillItem = document.getElementById(`fill-${id}`);
             if (fillItem) {
@@ -1778,7 +1779,7 @@
         // Toggle select all
         function toggleSelectAll() {
             const filteredData = getFilteredData();
-            
+
             if (selectedFillUps.size === filteredData.length) {
                 // Deselect all
                 selectedFillUps.clear();
@@ -1787,7 +1788,7 @@
                 selectedFillUps.clear();
                 filteredData.forEach(fill => selectedFillUps.add(fill.id));
             }
-            
+
             updateHistory(); // Refresh to show checkboxes
         }
 
@@ -1801,7 +1802,7 @@
         // Show assign vehicle modal
         function showAssignVehicleModal() {
             if (selectedFillUps.size === 0) return;
-            
+
             // Populate vehicle dropdown
             const select = document.getElementById('bulk-vehicle-select');
             select.innerHTML = '<option value="">Select Vehicle</option>';
@@ -1811,7 +1812,7 @@
                 option.textContent = vehicle;
                 select.appendChild(option);
             });
-            
+
             document.getElementById('modal-selected-count').textContent = selectedFillUps.size;
             document.getElementById('assign-vehicle-modal').style.display = 'flex';
         }
@@ -1824,17 +1825,17 @@
         // Apply bulk vehicle assignment
         function applyBulkVehicleAssignment() {
             const vehicleName = document.getElementById('bulk-vehicle-select').value;
-            
+
             if (!vehicleName) {
                 alert('Please select a vehicle');
                 return;
             }
-            
+
             if (selectedFillUps.size === 0) {
                 alert('No fill-ups selected');
                 return;
             }
-            
+
             // Update all selected fill-ups
             let updatedCount = 0;
             fillUps.forEach(fill => {
@@ -1843,14 +1844,14 @@
                     updatedCount++;
                 }
             });
-            
+
             // Save and refresh
             saveData();
             selectedFillUps.clear();
             updateStats();
             updateHistory();
             updateCharts();
-            
+
             closeAssignVehicleModal();
             alert(`Successfully assigned "${vehicleName}" to ${updatedCount} fill-up(s)!`);
         }
@@ -2058,55 +2059,55 @@
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                
+
                 // Title
                 doc.setFontSize(20);
                 doc.text('Fuel Tracker Report', 20, 20);
-                
+
                 // Date range
                 doc.setFontSize(12);
                 const dates = filteredData.map(f => f.date).sort();
                 doc.text(`Period: ${dates[0]} to ${dates[dates.length - 1]}`, 20, 30);
-                
+
                 // Vehicle filter
                 if (currentVehicleFilter !== 'all') {
                     doc.text(`Vehicle: ${currentVehicleFilter}`, 20, 38);
                 }
-                
+
                 // Summary Stats
                 doc.setFontSize(14);
                 doc.text('Summary Statistics', 20, 50);
                 doc.setFontSize(11);
-                
+
                 const fillUpsWithMpg = filteredData.filter(f => f.mpg !== null);
-                const avgMpg = fillUpsWithMpg.length > 0 
+                const avgMpg = fillUpsWithMpg.length > 0
                     ? (fillUpsWithMpg.reduce((sum, f) => sum + parseFloat(f.mpg), 0) / fillUpsWithMpg.length).toFixed(1)
                     : 'N/A';
                 const totalSpent = filteredData.reduce((sum, f) => sum + f.totalCost, 0).toFixed(2);
                 const totalMiles = filteredData.filter(f => f.miles !== null).reduce((sum, f) => sum + f.miles, 0).toFixed(0);
                 const avgPrice = (filteredData.reduce((sum, f) => sum + f.pricePerGallon, 0) / filteredData.length).toFixed(3);
-                
+
                 let yPos = 60;
                 doc.text(`Total Fill-ups: ${filteredData.length}`, 20, yPos);
                 doc.text(`Average MPG: ${avgMpg}`, 20, yPos + 8);
                 doc.text(`Total Spent: $${totalSpent}`, 20, yPos + 16);
                 doc.text(`Total Miles: ${totalMiles}`, 20, yPos + 24);
                 doc.text(`Average Price/Gallon: $${avgPrice}`, 20, yPos + 32);
-                
+
                 // Recent Fill-ups (last 10)
                 doc.setFontSize(14);
                 doc.text('Recent Fill-ups', 20, yPos + 50);
                 doc.setFontSize(9);
-                
+
                 const recent = filteredData.slice(-10).reverse();
                 let tableY = yPos + 58;
-                
+
                 doc.text('Date', 20, tableY);
                 doc.text('Gallons', 60, tableY);
                 doc.text('Price', 90, tableY);
                 doc.text('Total', 120, tableY);
                 doc.text('MPG', 150, tableY);
-                
+
                 tableY += 6;
                 recent.forEach(fill => {
                     if (tableY > 270) {
@@ -2120,7 +2121,7 @@
                     doc.text(fill.mpg ? fill.mpg.toString() : 'N/A', 150, tableY);
                     tableY += 6;
                 });
-                
+
                 doc.save('fuel-tracker-report-' + new Date().toISOString().split('T')[0] + '.pdf');
             } catch (error) {
                 alert('Error creating PDF: ' + error.message);
