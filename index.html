@@ -755,6 +755,18 @@
                             <div class="stat-value" id="total-miles">--</div>
                             <div class="stat-label">Total Miles</div>
                         </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="cost-per-mile">--</div>
+                            <div class="stat-label">Cost per Mile</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="best-mpg">--</div>
+                            <div class="stat-label">Best MPG</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="worst-mpg">--</div>
+                            <div class="stat-label">Worst MPG</div>
+                        </div>
                     </div>
                 </div>
 
@@ -1031,6 +1043,127 @@
                 },
                 yTickFormatter(value) {
                     return '$' + Number(value).toFixed(2);
+                }
+            },
+            costPerMile: {
+                label: 'Cost per Mile',
+                type: 'line',
+                emptyMessage: 'Not enough data to calculate cost per mile. Add more fill-ups with odometer readings.',
+                buildData(filteredData) {
+                    const entries = filteredData.filter(fill => fill.miles !== null && fill.miles > 0);
+                    if (entries.length === 0) return null;
+
+                    let labels, data;
+                    if (smoothChart && entries.length > 12) {
+                        const monthly = aggregateByMonth(entries, e => e.totalCost / e.miles, vals => vals.reduce((a, b) => a + b, 0) / vals.length);
+                        labels = monthly.map(m => m.label);
+                        data = monthly.map(m => +m.value.toFixed(4));
+                    } else {
+                        labels = entries.map(fill => formatDateLocal(fill.date));
+                        data = entries.map(fill => +(fill.totalCost / fill.miles).toFixed(4));
+                    }
+                    const pr = dynamicPointRadius(data.length);
+                    return {
+                        labels,
+                        datasets: [{
+                            label: 'Cost per Mile',
+                            data,
+                            borderColor: '#fb923c',
+                            backgroundColor: 'rgba(251, 146, 60, 0.15)',
+                            pointRadius: pr,
+                            pointHoverRadius: Math.max(pr + 3, 4),
+                            pointHitRadius: 20,
+                            tension: 0.35,
+                            fill: true
+                        }]
+                    };
+                },
+                yTickFormatter(value) {
+                    return '$' + Number(value).toFixed(3) + '/mi';
+                }
+            },
+            milesBetweenFillups: {
+                label: 'Miles per Fill-up',
+                type: 'bar',
+                emptyMessage: 'Not enough data to show miles between fill-ups. Add more fill-ups with odometer readings.',
+                buildData(filteredData) {
+                    const entries = filteredData.filter(fill => fill.miles !== null);
+                    if (entries.length === 0) return null;
+
+                    let labels, data;
+                    if (smoothChart && entries.length > 12) {
+                        const monthly = aggregateByMonth(entries, e => e.miles, vals => vals.reduce((a, b) => a + b, 0));
+                        labels = monthly.map(m => m.label);
+                        data = monthly.map(m => +m.value.toFixed(0));
+                    } else {
+                        labels = entries.map(fill => formatDateLocal(fill.date));
+                        data = entries.map(fill => Number(fill.miles));
+                    }
+                    return {
+                        labels,
+                        datasets: [{
+                            label: smoothChart ? 'Miles (Monthly)' : 'Miles',
+                            data,
+                            borderColor: '#22d3ee',
+                            backgroundColor: 'rgba(34, 211, 238, 0.65)',
+                            tension: 0.35,
+                            fill: false
+                        }]
+                    };
+                },
+                yTickFormatter(value) {
+                    return Number(value).toFixed(0) + ' mi';
+                }
+            },
+            yearOverYearMpg: {
+                label: 'Year-over-Year MPG',
+                type: 'line',
+                emptyMessage: 'Need fill-ups across at least one year with MPG data to show this chart.',
+                buildData(filteredData) {
+                    const entries = filteredData.filter(fill => fill.mpg !== null);
+                    if (entries.length === 0) return null;
+
+                    // Group by year, then by month — ignore year/month filters so all years show
+                    const allEntries = currentVehicleFilter === 'all'
+                        ? fillUps.filter(f => f.mpg !== null)
+                        : fillUps.filter(f => f.mpg !== null && f.vehicle === currentVehicleFilter);
+
+                    const byYear = {};
+                    allEntries.forEach(fill => {
+                        const year = fill.date.substring(0, 4);
+                        const month = parseInt(fill.date.substring(5, 7)) - 1; // 0-indexed
+                        if (!byYear[year]) byYear[year] = Array(12).fill(null).map(() => []);
+                        byYear[year][month].push(parseFloat(fill.mpg));
+                    });
+
+                    const years = Object.keys(byYear).sort();
+                    if (years.length === 0) return null;
+
+                    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    const palette = ['#60a5fa','#34d399','#f59e0b','#f87171','#a78bfa','#fb923c'];
+
+                    const datasets = years.map((year, i) => {
+                        const monthlyAvg = byYear[year].map(vals => vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null);
+                        const color = palette[i % palette.length];
+                        const pr = dynamicPointRadius(monthlyAvg.filter(v => v !== null).length);
+                        return {
+                            label: year,
+                            data: monthlyAvg,
+                            borderColor: color,
+                            backgroundColor: color.replace(')', ', 0.1)').replace('rgb', 'rgba'),
+                            pointRadius: pr,
+                            pointHoverRadius: Math.max(pr + 3, 4),
+                            pointHitRadius: 16,
+                            tension: 0.35,
+                            fill: false,
+                            spanGaps: true
+                        };
+                    });
+
+                    return { labels: monthNames, datasets };
+                },
+                yTickFormatter(value) {
+                    return Number(value).toFixed(1);
                 }
             }
         };
@@ -1481,6 +1614,9 @@
                 document.getElementById('last-price-paid').textContent = '--';
                 document.getElementById('total-spent').textContent = '--';
                 document.getElementById('total-miles').textContent = '--';
+                document.getElementById('cost-per-mile').textContent = '--';
+                document.getElementById('best-mpg').textContent = '--';
+                document.getElementById('worst-mpg').textContent = '--';
                 return;
             }
 
@@ -1508,12 +1644,19 @@
                 ? filteredData.reduce((sum, f) => sum + f.pricePerGallon, 0) / filteredData.length
                 : 0;
 
+            const mpgValues = fillUpsWithMpg.map(f => parseFloat(f.mpg));
+            const bestMpg = mpgValues.length > 0 ? Math.max(...mpgValues) : null;
+            const worstMpg = mpgValues.length > 0 ? Math.min(...mpgValues) : null;
+
             document.getElementById('avg-mpg').textContent = fillUpsWithMpg.length > 0 ? avgMpg.toFixed(1) : '--';
             document.getElementById('last-mpg').textContent = latestMpgFill ? Number(latestMpgFill.mpg).toFixed(1) : '--';
             document.getElementById('avg-price-per-gallon').textContent = filteredData.length > 0 ? '$' + avgPricePerGallon.toFixed(3) : '--';
             document.getElementById('last-price-paid').textContent = latestFillUp ? '$' + Number(latestFillUp.pricePerGallon).toFixed(3) : '--';
             document.getElementById('total-spent').textContent = '$' + totalSpent.toFixed(0);
             document.getElementById('total-miles').textContent = totalMiles > 0 ? totalMiles.toFixed(0) : '--';
+            document.getElementById('cost-per-mile').textContent = totalMiles > 0 ? '$' + (totalSpent / totalMiles).toFixed(3) + '/mi' : '--';
+            document.getElementById('best-mpg').textContent = bestMpg !== null ? bestMpg.toFixed(1) : '--';
+            document.getElementById('worst-mpg').textContent = worstMpg !== null ? worstMpg.toFixed(1) : '--';
         }
 
         function recomputeDerivedFields() {
@@ -1770,7 +1913,8 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
+                            display: selectedChartMetric === 'yearOverYearMpg',
+                            labels: { color: '#94a3b8' }
                         }
                     },
                     scales: {
